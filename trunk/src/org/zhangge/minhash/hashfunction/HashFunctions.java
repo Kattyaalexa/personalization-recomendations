@@ -1,6 +1,7 @@
 package org.zhangge.minhash.hashfunction;
 
 import java.security.MessageDigest;
+import java.util.HashSet;
 
 public class HashFunctions {
 	
@@ -18,14 +19,11 @@ public class HashFunctions {
 		System.out.println(hf.JSHash(key));
 		System.out.println(Integer.SIZE);
 		System.out.println(hf.PJWHash(key));
-		System.out.println(hf.APHash(key));
-		System.out.println(hf.BKDRHash(key));
-		System.out.println(hf.CRCHash(key));//负数
-		System.out.println(hf.DJFHash(key));
 		System.out.println(hf.ELFHash(key));
-		System.out.println(hf.SDBMHash(key));
 		System.out.println(hf.sha1_text(key));
 		System.out.println(String.valueOf(hf.sha1(key)));
+		HashSet hashSet = new HashSet();
+		hashSet.add("zhangge");
 	}
 	
 	  
@@ -272,92 +270,4 @@ public class HashFunctions {
 		return hash & 0x7FFFFFFF;
 	}
 	
-	/**
-	 * BKDR Hash Function
-	 * @param key
-	 * @return
-	 */
-	public int BKDRHash(String key) {
-		int seed = 131;//31 131 1313 13131 1313131 etc....
-		int hash = 0;
-		
-		for (int i = 0; i < key.length(); i++) {
-			hash = hash * seed + key.charAt(i);
-		}
-		
-		return hash & 0x7FFFFFFF;
-	}
-	
-	/**
-	 * SDBM Hash Function
-	 * @param key
-	 * @return
-	 */
-	public int SDBMHash(String key) {
-		int hash = 0;
-		for (int i = 0; i < key.length(); i++) {
-//			hash = key.charAt(i) + (hash << 6) + (hash << 16) - hash;
-			hash = 65599*hash + key.charAt(i);
-		}
-		return hash & 0x7FFFFFFF;
-	}
-	
-	/**
-	 * DJF Hash Function
-	 * @param key
-	 * @return
-	 */
-	public int DJFHash(String key) {
-		int hash = 5381;
-		for (int i = 0; i < key.length(); i++) {
-			hash += (hash << 5) + key.charAt(i);
-		}
-		
-		return hash & 0x7FFFFFFF;
-	}
-	
-	/**
-	 * AP Hash Function
-	 * @param key
-	 * @return
-	 */
-	public int APHash(String key) {
-		int hash = 0;
-		for (int i = 0; i < key.length(); i++) {
-			if ((i & 1) == 0) {
-				hash ^= ((hash << 7) ^ key.charAt(i) ^ (hash >> 3));
-			} else {
-				hash ^= (~((hash << 11) ^ key.charAt(i) ^ (hash >> 5)));
-			}
-			
-		}
-		return hash & 0x7FFFFFFF;
-	}
-	
-	/**
-	 * CRC Hash Function
-	 * @param key
-	 * @return
-	 */
-	public int CRCHash(String key) {
-		int nleft = key.length();
-		int sum = 0;
-		int answer = 0;
-		int index = 0;
-		while (nleft > 1) {
-			sum += key.charAt(index);
-			index ++;
-			nleft -= 2;
-		}
-		
-		if (1 == nleft) {
-			answer = key.charAt(index);
-			sum += answer;
-		}
-		
-		sum = (sum >> 16) + (sum & 0xFFFF);
-		sum += (sum >> 16);
-		answer = ~sum;
-		return Math.abs(answer & 0xFFFFFFFF);
-	}
 }
