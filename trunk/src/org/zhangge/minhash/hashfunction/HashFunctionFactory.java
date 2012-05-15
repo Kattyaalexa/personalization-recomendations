@@ -21,47 +21,44 @@ import org.zhangge.minhash.hashfunction.functions.RSHash;
 import org.zhangge.minhash.hashfunction.functions.RotatingHash;
 import org.zhangge.minhash.hashfunction.functions.SDBMHash;
 import org.zhangge.minhash.hashfunction.functions.SimpleHash;
-import org.zhangge.minhash.random.SeedGenerator;
 
 public class HashFunctionFactory {
 	
-	private Map<Integer, HashFunction> hashFunctions = new HashMap<Integer, HashFunction>();
-    private HashFunctionFactory hashFunctionFactory = null;
-    private SeedGenerator seedGenerator = new SeedGenerator();
+	private static Map<Integer, HashFunction> hashFunctions = new HashMap<Integer, HashFunction>();
+    private static HashFunctionFactory hashFunctionFactory = null;
     
     private HashFunctionFactory() {
-            
     }
     
     /**
      * 做成了单例模式
      * @return
      */
-    public HashFunctionFactory getInstance(){
+    public static HashFunctionFactory getInstance(){
             if (hashFunctionFactory != null) {
                     return hashFunctionFactory;
             }
             hashFunctionFactory = new HashFunctionFactory();
             
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(0), new CRCHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(1), new APHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(2), new DJFHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(3), new SDBMHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(4), new AdditiveHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(5), new ELFHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(6), new BKDRHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(7), new CRC32());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(8), new CRCHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(9), new DEKHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(10), new FNVHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(11), new FNVHash2());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(12), new JSHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(13), new MixHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(14), new OneByOneHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(15), new PJWHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(16), new RotatingHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(17), new RSHash());
-            hashFunctionFactory.addHashFunction(seedGenerator.getOneSeed(18), new SimpleHash());
+            hashFunctionFactory.addHashFunction(0, new CRCHash());
+            hashFunctionFactory.addHashFunction(1, new APHash());
+            hashFunctionFactory.addHashFunction(2, new DJFHash());
+            hashFunctionFactory.addHashFunction(3, new SDBMHash());
+            hashFunctionFactory.addHashFunction(4, new AdditiveHash());
+            hashFunctionFactory.addHashFunction(5, new ELFHash());
+            hashFunctionFactory.addHashFunction(6, new BKDRHash());
+            hashFunctionFactory.addHashFunction(7, new CRC32());
+            hashFunctionFactory.addHashFunction(8, new CRCHash());
+            hashFunctionFactory.addHashFunction(9, new DEKHash());
+            hashFunctionFactory.addHashFunction(10, new FNVHash());
+            hashFunctionFactory.addHashFunction(11, new FNVHash2());
+            hashFunctionFactory.addHashFunction(12, new JSHash());
+            hashFunctionFactory.addHashFunction(13, new MixHash());
+            hashFunctionFactory.addHashFunction(14, new OneByOneHash());
+            hashFunctionFactory.addHashFunction(15, new PJWHash());
+            hashFunctionFactory.addHashFunction(16, new RotatingHash());
+            hashFunctionFactory.addHashFunction(17, new RSHash());
+            hashFunctionFactory.addHashFunction(18, new SimpleHash());
             
             return hashFunctionFactory;
     }
@@ -70,8 +67,11 @@ public class HashFunctionFactory {
      * @param seedValue 随机的与hash函数对应的种子值
      * @return
      */
-    public HashFunction getHashFunction(int seedValue) {
-            HashFunction hash = this.hashFunctions.get(seedValue);
+    public HashFunction getHashFunction(Integer seedValue) {
+            HashFunction hash = hashFunctions.get(seedValue);
+            if (hash == null) {
+            	hash = hashFunctions.get(seedValue % hashFunctions.size());
+			}
             return hash;
     }
     
@@ -81,6 +81,6 @@ public class HashFunctionFactory {
      * @param value
      */
     public void addHashFunction(Integer key, HashFunction value) {
-            this.hashFunctions.put(key, value);
+            hashFunctions.put(key, value);
     }
 }
