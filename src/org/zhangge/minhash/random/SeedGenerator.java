@@ -14,7 +14,7 @@ public class SeedGenerator {
 
 	public static void main(String[] args) throws IOException {
 //		SeedGenerator sg = new SeedGenerator();
-		new SeedGenerator().generateSeeds(100, "/home/zhangge/seedValues");
+		new SeedGenerator().generateSeeds(100, "/home/zhangge/SeedValues");
 //		System.out.println(sg.getOneSeed());
 	}
 	
@@ -47,10 +47,10 @@ public class SeedGenerator {
 		String seed = null;
 		for (int i = 0; i < num; i++) {
 			Integer intSeed = generateOneSeed();//生成一个种子
-			while (seeds.contains(intSeed)) {
+			while (!seeds.contains(intSeed)) {
 				intSeed = generateOneSeed();
 			}
-			this.addSeeds(intSeed);//先加入库再写到文件
+			//this.addSeeds(intSeed);//先加入库再写到文件
 			seed = Integer.toString(intSeed);
 			bufferedWriter.write(seed);
 			bufferedWriter.newLine();
