@@ -15,37 +15,59 @@ import org.apache.hadoop.hbase.util.Bytes;
 public class GenTable {
 	
 	private static Configuration conf = null;
-	private static int CLUSTERS = 5; 
+	private static int CLUSTER_NUM= 5; //cluster的数目
+	private static int USER_NUM = 10;	 //user的数目
+	private static int NEWS_NUM = 10;	 //news的数目
 	
 	static {
 		conf = HBaseConfiguration.create();
 		conf.addResource("hbase-site.xml"); //this is default,so don't have to write this here
 	}
-	public static double[] p = new double[CLUSTERS];
+	public static double[] p = new double[CLUSTER_NUM];
 	public static Random rd = new Random();
 	public static void main(String[] args) throws IOException{
 		
 		HBaseAdmin admin = new HBaseAdmin(conf);
 		
-		if(admin.tableExists("UT")||admin.tableExists("ST")){
-			System.out.println("this table is already exist!");
-		} else {
-			HTableDescriptor htdut = new HTableDescriptor("UT");
-			htdut.addFamily(new HColumnDescriptor("clusters"));
-			htdut.addFamily(new HColumnDescriptor("history"));
-			admin.createTable(htdut);
+		if(admin.tableExists("UT")){
+			admin.disableTable("UT");
+			admin.deleteTable("UT");
 			
-			HTableDescriptor htdst = new HTableDescriptor("ST");
-			htdst.addFamily(new HColumnDescriptor("clusters"));
-			htdst.addFamily(new HColumnDescriptor("covisitation"));
-			admin.createTable(htdst);
-			System.out.println("create tables successfully");
 		}
-		generateUT(10);
-		generateST(10);
+		if(admin.tableExists("ST")){
+			admin.disableTable("ST");
+			admin.deleteTable("ST");
+		}
+		/*if(admin.tableExists("SZ")){
+			admin.disableTable("SZ");
+			admin.deleteTable("SZ");
+		}*/
+		HTableDescriptor htdut = new HTableDescriptor("UT");
+		htdut.addFamily(new HColumnDescriptor("clusters"));
+		htdut.addFamily(new HColumnDescriptor("history"));
+		admin.createTable(htdut);
 		
+		HTableDescriptor htdst = new HTableDescriptor("ST");
+		htdst.addFamily(new HColumnDescriptor("clusters"));
+		htdst.addFamily(new HColumnDescriptor("covisitation"));
+		admin.createTable(htdst);
+		
+		/*HTableDescriptor htdsz = new HTableDescriptor("SZ");
+		htdsz.addFamily(new HColumnDescriptor("szfamily"));
+		admin.createTable(htdsz);*/
+		
+		System.out.println("create tables successfully");
+		
+		generateUT(USER_NUM);
+		generateST(NEWS_NUM);
+		//generateSZ();
 	}
 	
+	/**
+	 * 生成数据库数据UT
+	 * @param n 生成n个user
+	 * @throws IOException
+	 */
 	public static void generateUT(int n) throws IOException {
 		HTable table = new HTable(conf,"UT");
 		Put put = null;
@@ -58,13 +80,18 @@ public class GenTable {
 			}
 			int historyNum = rd.nextInt(5)+1;
 			for(int j=0;j<historyNum;j++){
-				int history = rd.nextInt(9)+1;
+				int history = rd.nextInt(NEWS_NUM)+1;
 				put.add(Bytes.toBytes("history"),Bytes.toBytes("s"+history),Bytes.toBytes("s"+history));
 				table.put(put);
 			}
 		}
 	}
 	
+	/**
+	 * 生成数据库数据ST
+	 * @param m 生成m个news
+	 * @throws IOException
+	 */
 	public static void generateST(int m) throws IOException {
 		HTable table = new HTable(conf,"ST");
 		Put put = null;
@@ -79,6 +106,25 @@ public class GenTable {
 		}
 	}
 	
+	/**
+	 * 生成存储N(z,s)和N(z)的数据库
+	 * @throws IOException
+	 */
+	/*public static void generateSZ() throws IOException {
+		HTable table = new HTable(conf,"SZ");
+		Put put = new Put(Bytes.toBytes("szkey"));
+		for(int i=1;i<=CLUSTER_NUM;i++){
+			put.add(Bytes.toBytes("szfamily"),Bytes.toBytes("z"+i),Bytes.toBytes((rd.nextDouble()+1.0)*10+""));
+			for(int j=1;j<=NEWS_NUM;j++){
+				put.add(Bytes.toBytes("szfamily"),Bytes.toBytes("s"+j+"=="+"z"+i),Bytes.toBytes(rd.nextDouble()+""));
+				table.put(put);
+			}
+		}
+	}*/
+	
+	/**
+	 * 随机生成包含CLUSTER_NUM个小数
+	 */
  	public static void generateP() {
 		double sum = 0;
 		
