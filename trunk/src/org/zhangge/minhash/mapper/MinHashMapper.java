@@ -12,13 +12,12 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.zhangge.CommonUtil;
 import org.zhangge.minhash.hashfunction.functions.MurmurHash;
 
 public class MinHashMapper extends TableMapper<ImmutableBytesWritable, ImmutableBytesWritable> {
 
 //	private HashFunctionFactory hashFunction = HashFunctionFactory.getInstance();
-	private int p = 2;
-	private int q = 10;
 	
 	@Override
 	protected void map(ImmutableBytesWritable row, Result values, Context context)
@@ -33,9 +32,9 @@ public class MinHashMapper extends TableMapper<ImmutableBytesWritable, Immutable
 		ImmutableBytesWritable key = null;
 		List<StringBuilder> clusterIds = new ArrayList<StringBuilder>();
 		
-		for (int i = 0; i < q; i++) {
+		for (int i = 0; i < CommonUtil.MinHash_q; i++) {
 			StringBuilder clusterId = new StringBuilder();
-			for (int j = 0; j < p; j++) {
+			for (int j = 0; j < CommonUtil.MinHash_p; j++) {
 				Integer seed = Integer.valueOf(br.readLine());
 				//这是方法一，由种子值获得对应hash函数，缺点是：hash函数太少了。
 //				HashFunction hashFun = hashFunction.getHashFunction(seed);
