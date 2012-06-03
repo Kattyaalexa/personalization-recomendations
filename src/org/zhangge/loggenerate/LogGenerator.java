@@ -17,6 +17,7 @@ import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.zhangge.CommonUtil;
 
 public class LogGenerator {
 	
@@ -75,15 +76,14 @@ public class LogGenerator {
 	 */
 	public void generateToHbase(int count) throws IOException, InterruptedException {
 		Configuration config = HBaseConfiguration.create();
-		
 		HBaseAdmin admin = new HBaseAdmin(config);
 		
-		admin.disableTable(Bytes.toBytes("UserTable"));
-		admin.deleteTable(Bytes.toBytes("UserTable"));
+		admin.disableTable(Bytes.toBytes(CommonUtil.UT));
+		admin.deleteTable(Bytes.toBytes(CommonUtil.UT));
 		
-		HTableDescriptor htd = new HTableDescriptor("UserTable");//一个表
-		HColumnDescriptor hcd1 = new HColumnDescriptor("clusters");//第一个列族
-		HColumnDescriptor hcd2 = new HColumnDescriptor("story");//第二个列族
+		HTableDescriptor htd = new HTableDescriptor(CommonUtil.UT);//一个表
+		HColumnDescriptor hcd1 = new HColumnDescriptor(CommonUtil.UT_Family1);//第一个列族
+		HColumnDescriptor hcd2 = new HColumnDescriptor(CommonUtil.UT_Family2);//第二个列族
 		htd.addFamily(hcd1);
 		htd.addFamily(hcd2);
 		admin.createTable(htd);
@@ -98,7 +98,7 @@ public class LogGenerator {
 			if (scores.get(i) > average) {
 				byte[] row = Bytes.toBytes(uids.get(i).toString());
 				Put put = new Put(row);
-				byte[] family = Bytes.toBytes("story");
+				byte[] family = Bytes.toBytes(CommonUtil.UT_Family1);
 				put.add(family, Bytes.toBytes(storyids.get(i).toString()), timestamp.get(i), Bytes.toBytes(timestamp.get(i).toString()));
 				//put.add(databytes, Bytes.toBytes(storyids.get(i).toString()), Bytes.toBytes(String.valueOf(date.getTime())));
 				table.put(put);
