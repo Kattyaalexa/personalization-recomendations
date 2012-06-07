@@ -14,26 +14,26 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.Text;
 
 
-public class MapClass extends TableMapper<Text,DoubleWritable>{
+public class MapClass extends TableMapper<Text,FloatWritable>{
 	
-	private Hashtable<Text,Double> hashTable = new Hashtable<Text,Double>();
+	private Hashtable<Text,Float> hashTable = new Hashtable<Text,Float>();
 
 	protected void setup(Context context) throws IOException,InterruptedException {
 		
 		Path[] cacheFiles = DistributedCache.getLocalCacheFiles(context.getConfiguration());
-		
-		if(cacheFiles != null && cacheFiles.length > 0) {
+		BufferedReader br;
+		for(int i=0;i<cacheFiles.length;i++) {
 			String line;
 			String[] tokens;
-			BufferedReader br = new BufferedReader(new FileReader(cacheFiles[0].toString()));
+			br = new BufferedReader(new FileReader(cacheFiles[i].toString()));
 			
 			while((line=br.readLine()) != null) {
 				tokens = line.split("\t",2);
-				hashTable.put(new Text(tokens[0]),Double.parseDouble(tokens[1]));
+				hashTable.put(new Text(tokens[0]),Float.parseFloat(tokens[1]));
 			}
 			br.close();
 		}
@@ -43,11 +43,11 @@ public class MapClass extends TableMapper<Text,DoubleWritable>{
 		
 		List<KeyValue> clusters_kv = new ArrayList<KeyValue>();
 		List<KeyValue> history_kv = new ArrayList<KeyValue>();
-		double sum = 0;	//sum是q*中的分母
+		float sum = 0;	//sum是q*中的分母
 		Text z = null;	//z临时保存hashTable中的Key,对应于N(z)
 		Text zs = null; //zs临时保存hashTable中的Key,形式是s==z,对应于N(z|s)
-		double pzu = 0;	//p(z|u)的值
-		double q = 0;	//q*的值
+		float pzu = 0;	//p(z|u)的值
+		float q = 0;	//q*的值
 		//把values的内容分发到clusters_kv和history_kv中
 		for(KeyValue kv : values.raw()) {
 			if("clusters".equals(Bytes.toString(kv.getFamily()))){
@@ -60,8 +60,9 @@ public class MapClass extends TableMapper<Text,DoubleWritable>{
 		for(int i=0;i<history_kv.size();i++){
 			for(int j=0;j<clusters_kv.size();j++){
 				z = new Text(clusters_kv.get(j).getQualifier());
+//System.out.println("======="+z.toString()+"---"+Bytes.toDouble(clusters_kv.get(j).getValue()));
 				zs = new Text(Bytes.toString(history_kv.get(i).getQualifier())+"=="+z.toString());
-				pzu = Bytes.toDouble(clusters_kv.get(j).getValue());
+				pzu = Bytes.toFloat(clusters_kv.get(j).getValue());
 				sum += (hashTable.get(zs)/hashTable.get(z))*pzu;
 			}
 		}
@@ -70,12 +71,12 @@ public class MapClass extends TableMapper<Text,DoubleWritable>{
 			for(int j=0;j<clusters_kv.size();j++){
 				z = new Text(clusters_kv.get(j).getQualifier());
 				zs = new Text(Bytes.toString(history_kv.get(i).getQualifier())+"=="+z.toString());
-				pzu = Bytes.toDouble(clusters_kv.get(j).getValue());
+				pzu = Bytes.toFloat(clusters_kv.get(j).getValue());
 				q = ( (hashTable.get(zs)/hashTable.get(z))*pzu )/sum;
 				
-				context.write(zs,new DoubleWritable(q));
-				context.write(z,new DoubleWritable(q));
-				context.write(new Text("@"+"=="+Bytes.toString(key.get())+"=="+z.toString()),new DoubleWritable(q));
+				context.write(zs,new FloatWritable(q));
+				context.write(z,new FloatWritable(q));
+				context.write(new Text("@"+"=="+Bytes.toString(key.get())+"=="+z.toString()),new FloatWritable(q));
 			}
 		}
 	}
