@@ -41,12 +41,6 @@ public class NewsStatisticsServer {
 	 * @throws IOException
 	 */
 	public void fetchFromUT(String uid) throws IOException {
-//		Scan scan = new Scan(get);
-//		ResultScanner rs = usertable.getScanner(scan);
-//		for (Result result : rs) {
-//			System.out.println(result);
-//			user_result = result;
-//		}
 		Get get1 = new Get(Bytes.toBytes(uid));
 		get1.addFamily(Bytes.toBytes(CommonUtil.UT_Family1));
 		user_storys = usertable.get(get1);
