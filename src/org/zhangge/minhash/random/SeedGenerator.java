@@ -7,6 +7,8 @@ import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
 
+import org.zhangge.CommonUtil;
+
 public class SeedGenerator {
 	
 	private Set<Integer> seeds = new HashSet<Integer>();//记录种子的一个库
@@ -14,7 +16,7 @@ public class SeedGenerator {
 
 	public static void main(String[] args) throws IOException {
 //		SeedGenerator sg = new SeedGenerator();
-		new SeedGenerator().generateSeeds(100, "/home/zhangge/SeedValues");
+		new SeedGenerator().generateSeeds(CommonUtil.MinHash_p * CommonUtil.MinHash_q, "/home/zhangge/SeedValues");
 //		System.out.println(sg.getOneSeed());
 	}
 	
