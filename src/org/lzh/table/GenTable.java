@@ -12,18 +12,23 @@ import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.util.Bytes;
 
+/**
+ * 生成UT，ST表，并写入对应Clusters及其值
+ * @author lzh
+ *
+ */
 public class GenTable {
 	
 	private static Configuration conf = null;
-	private static int CLUSTER_NUM= 5; //cluster的数目
-	private static int USER_NUM = 10;	 //user的数目
-	private static int NEWS_NUM = 10;	 //news的数目
+	private static int CLUSTER_NUM= 20; //cluster的数目
+	private static int USER_NUM = 943;	 //user的数目
+	private static int NEWS_NUM = 1682;	 //news的数目
 	
 	static {
 		conf = HBaseConfiguration.create();
 		conf.addResource("hbase-site.xml"); //this is default,so don't have to write this here
 	}
-	public static double[] p = new double[CLUSTER_NUM];
+	public static float[] p = new float[CLUSTER_NUM];
 	public static Random rd = new Random();
 	public static void main(String[] args) throws IOException{
 		
@@ -56,11 +61,10 @@ public class GenTable {
 		htdsz.addFamily(new HColumnDescriptor("szfamily"));
 		admin.createTable(htdsz);*/
 		
-		System.out.println("create tables successfully");
-		
 		generateUT(USER_NUM);
 		generateST(NEWS_NUM);
 		//generateSZ();
+		System.out.println("create tables successfully");
 	}
 	
 	/**
@@ -78,12 +82,12 @@ public class GenTable {
 				put.add(Bytes.toBytes("clusters"),Bytes.toBytes("z"+(j+1)),Bytes.toBytes(p[j]+""));
 				table.put(put);
 			}
-			int historyNum = rd.nextInt(5)+1;
+			/*int historyNum = rd.nextInt(5)+1;
 			for(int j=0;j<historyNum;j++){
 				int history = rd.nextInt(NEWS_NUM)+1;
 				put.add(Bytes.toBytes("history"),Bytes.toBytes("s"+history),Bytes.toBytes("s"+history));
 				table.put(put);
-			}
+			}*/
 		}
 	}
 	
@@ -96,11 +100,11 @@ public class GenTable {
 		HTable table = new HTable(conf,"ST");
 		Put put = null;
 		for(int i=1;i<=m;i++){
-			generateP();
+			//generateP();
 			put = new Put(Bytes.toBytes("s"+i));
 			
 			for(int j=0;j<p.length;j++){
-				put.add(Bytes.toBytes("clusters"),Bytes.toBytes("z"+(j+1)),Bytes.toBytes(p[j]+""));
+				put.add(Bytes.toBytes("clusters"),Bytes.toBytes("z"+(j+1)),Bytes.toBytes(0+""));
 				table.put(put);
 			}
 		}
@@ -123,13 +127,13 @@ public class GenTable {
 	}*/
 	
 	/**
-	 * 随机生成包含CLUSTER_NUM个小数
+	 * 随机生成包含CLUSTER_NUM个小数，并且其和为1
 	 */
  	public static void generateP() {
-		double sum = 0;
+		float sum = 0;
 		
 		for(int ii=0;ii<p.length;ii++){
-			p[ii] = rd.nextDouble();
+			p[ii] = rd.nextFloat();
 			sum += p[ii];
 		}
 		for(int ii=0;ii<p.length;ii++){

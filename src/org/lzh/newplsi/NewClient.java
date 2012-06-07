@@ -9,7 +9,7 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.util.Tool;
@@ -22,11 +22,12 @@ public class NewClient extends Configured implements Tool{
 		Configuration conf = new Configuration();
 		conf = HBaseConfiguration.create(conf);
 		
-		Job job = new Job(conf,"plsi");
+		Job job = new Job(conf,"new plsi");
 		job.setJarByClass(NewClient.class);
 		//FileOutputFormat.setOutputPath(job,new Path(args[1]));
-		conf.set("intermedia",args[0]);
-		DistributedCache.addCacheFile(new Path(args[0]).toUri(),job.getConfiguration());
+		//conf.set("intermedia",args[0]);
+		DistributedCache.addCacheFile(new Path("intermediaNz").toUri(),job.getConfiguration());
+		DistributedCache.addCacheFile(new Path("intermediaNsz").toUri(),job.getConfiguration());
 		
 		Scan scan = new Scan();
 		scan.addFamily(Bytes.toBytes("clusters"));
@@ -36,18 +37,25 @@ public class NewClient extends Configured implements Tool{
 																											scan,
 																											MapClass.class, 
 																											Text.class, 
-																											DoubleWritable.class,
+																											FloatWritable.class,
 																											job);
 		TableMapReduceUtil.initTableReducerJob("UT",
 																												Reduce.class,
 																												job);
 		//job.setReducerClass(Reduce.class);
+		//job.waitForCompletion(true);
 		System.exit(job.waitForCompletion(true)?0:1);
 		return 0;
 	}
 
 	public static void main(String[] args) throws Exception{
+		/*int[] res = new int[3];
+		for(int i=0;i<res.length;i++){
+			res[i] = ToolRunner.run(new Configuration(), new NewClient(), args);
+		}
+		System.exit(0);*/
 		int res = ToolRunner.run(new Configuration(), new NewClient(), args);
 		System.exit(res);
+				
 	}
 }
