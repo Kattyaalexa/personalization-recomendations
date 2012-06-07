@@ -11,7 +11,7 @@ public class CommonUtil {
 	public static String ST_Family1 = "click-times";//ST表列族1
 	public static String ST_Family2 = "covisit-times";//ST表列族2
 	
-	public static int MinHash_q = 10;//MinHash里面的q，就是每个用户所属集群的数量
+	public static int MinHash_q = 20;//MinHash里面的q，就是每个用户所属集群的数量
 	public static int MinHash_p = 2;//MinHash里面的p，就是产生集群id所连接的hash值的个数
-	public static int MinHash_StandardClusterSize = 10;//精确一个集群的大小，最少10人
+	public static int MinHash_StandardClusterSize = 3;//精确一个集群的大小，最少10人
 }
