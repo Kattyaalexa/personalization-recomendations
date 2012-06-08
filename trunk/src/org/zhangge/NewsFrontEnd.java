@@ -8,8 +8,10 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -32,13 +34,13 @@ public class NewsFrontEnd {
 	private ArrayList<Integer> storyids = new ArrayList<Integer>();//用于存放story id
 	private ArrayList<Integer> scores = new ArrayList<Integer>();//用于存放打分
 	private ArrayList<Long> timestamp = new ArrayList<Long>();//用于存放时间
+	private Map<String, Double> average_score = new HashMap<String, Double>();//存放每个用户的平局分数
 	private double average;
 	
 	public static void main(String[] args) throws IOException, InterruptedException {
-		String filepath = "/home/zhangge/workspace/PersonalizationRecomendations/ml-100k/";
 		NewsFrontEnd nfe = new NewsFrontEnd();
-		nfe.readData(filepath + "ua.base");
-		nfe.writeData(filepath + "uids_average");
+		nfe.readData(CommonUtil.filepath + "u1.base");
+		nfe.writeData(CommonUtil.filepath + "uids_average");
 	}
 	
 	/**
@@ -75,21 +77,30 @@ public class NewsFrontEnd {
 			BufferedReader br = new BufferedReader(new FileReader(file));
 			int count = 0;//统计 总数
 			double sumScore = 0;//累加总分数
+			String lastuid = null;
 			String line = null;
 			while((line = br.readLine()) != null) {
-				count ++;
 				String[] parts = line.split("\t");
+				if (!parts[0].equals(lastuid) && lastuid != null) {
+					average = sumScore / count;
+					average_score.put(lastuid, average);
+					System.out.println(sumScore);
+					System.out.println(count);
+					System.out.println(average);
+	
+					count = 0;
+					sumScore = 0;
+				}
+				count ++;
 				sumScore += Integer.valueOf(parts[2]);
 				uids.add(Integer.valueOf(parts[0]));
 				storyids.add(Integer.valueOf(parts[1]));
 				scores.add(Integer.valueOf(parts[2]));
 				timestamp.add(Long.valueOf(parts[3]));
+				lastuid = parts[0];
 			}
-System.out.println(sumScore);
-System.out.println(count);
-			average = sumScore / count;
-System.out.println(average);
-			generateToHbase(count);
+//			average = sumScore / count;
+			generateToHbase(uids.size());
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -140,7 +151,7 @@ System.out.println(average);
 		
 		HTable table = new HTable(config, tablename);
 		for (int i = 0; i < count; i++) {
-			if (scores.get(i) > average) {
+			if (scores.get(i) > average_score.get(uids.get(i).toString())) {
 				byte[] row = Bytes.toBytes(uids.get(i).toString());
 				Put put = new Put(row);
 				byte[] family = Bytes.toBytes(CommonUtil.UT_Family1);

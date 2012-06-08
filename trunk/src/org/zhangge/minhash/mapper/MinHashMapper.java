@@ -43,8 +43,8 @@ public class MinHashMapper extends TableMapper<ImmutableBytesWritable, Immutable
 					String storyId = Bytes.toString(kv.getQualifier());//拿到的是列，而不是值
 //					long tempValue = hashFun.hash(storyId);
 					//方法二，直接由种子值作为hash函数的发生器
-					byte[] hashKey = storyId.getBytes();
-					long tempValue = Math.abs(MurmurHash.hash64(hashKey, hashKey.length, seed));
+					byte[] hashKey = Bytes.toBytes(storyId);
+					long tempValue = Math.abs(MurmurHash.hash32(hashKey, hashKey.length, seed));
 					if (tempValue < minValue) {
 						minValue = tempValue;
 					}
