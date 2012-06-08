@@ -8,6 +8,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,6 +35,11 @@ public class NewsPeronalizationServer {
 	private List<Result> storyList = new ArrayList<Result>();
 	private ResultScanner rs;
 	private HBaseAdmin admin;
+	private ArrayList<Integer> uids = new ArrayList<Integer>();//用于存放用户id
+	private ArrayList<Integer> storyids = new ArrayList<Integer>();//用于存放story id
+	private ArrayList<Integer> scores = new ArrayList<Integer>();//用于存放打分
+	private Map<String, Double> average_score = new HashMap<String, Double>();//存放每个用户的平均分数
+	private Map<String, Set<String>> candidate = new HashMap<String, Set<String>>();//存放候选story
 	
 	/**
 	 * 维护每个集群的总点击数
@@ -56,10 +62,10 @@ public class NewsPeronalizationServer {
 				}
 			}
 		}
-		Set<String> keys = sum_clicks.keySet();
-		for (String key : keys) {
-			System.out.println(key + ": " + sum_clicks.get(key));
-		}
+//		Set<String> keys = sum_clicks.keySet();
+//		for (String key : keys) {
+//			System.out.println(key + ": " + sum_clicks.get(key));
+//		}
 	}
 	
 	/**
@@ -118,8 +124,6 @@ public class NewsPeronalizationServer {
 	public void makeRankedStories(String uid) throws IOException {
 		Map<String, Double> scores = new HashMap<String, Double>();
 		List<KeyValue> clustersList = user_clusters.list();
-		FileWriter fileWriter = new FileWriter(CommonUtil.filepath + CommonUtil.candidate);
-		BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
 		if (clustersList != null) {
 			for (KeyValue cluster : clustersList) {//遍历用户所有的集群
 				byte[] clusterid = cluster.getValue();
@@ -129,8 +133,12 @@ public class NewsPeronalizationServer {
 						byte[] story_clicktimes = result.getValue(Bytes.toBytes(CommonUtil.ST_Family1), clusterid);
 						if (story_clicktimes != null) {
 							String storyId = new String(result.getRow());
-bufferedWriter.write(Bytes.toString(clusterid) + ":" + storyId);
-bufferedWriter.newLine();
+							Set<String> storyIdSet = candidate.get(Bytes.toString(clusterid));
+							if (storyIdSet == null) {
+								storyIdSet = new HashSet<String>();
+							}
+							storyIdSet.add(storyId);
+							candidate.put(Bytes.toString(clusterid), storyIdSet);
 							Double sum = Double.valueOf(sum_clicks.get(new String(clusterid)));
 							Double clicks = Double.valueOf(new String(story_clicktimes));
 							Double score = clicks / sum;
@@ -149,6 +157,27 @@ bufferedWriter.newLine();
 	}
 	
 	/**
+	 * 把侯选的story写到文件
+	 * @param filepath
+	 * @throws IOException
+	 */
+	public void writeCandidate(String filepath) throws IOException {
+		FileWriter fileWriter = new FileWriter(filepath);
+		BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
+		Set<String> keys = candidate.keySet();
+		for (String key : keys) {
+			Set<String> storys = candidate.get(key);
+			for (String story : storys) {
+				bufferedWriter.write(key + ":" + story);
+				bufferedWriter.newLine();
+			}
+		}
+		bufferedWriter.flush();
+		bufferedWriter.close();
+		fileWriter.close();
+	}
+	
+	/**
 	 * 产生推荐分数写到文件里面去
 	 * @param filepath
 	 * @throws IOException
@@ -164,12 +193,40 @@ bufferedWriter.newLine();
 				Double score = scores.get(k);
 				bufferedWriter.write(key + ":" + k + ":" + score);
 				bufferedWriter.newLine();
-System.out.println(key + ":" + k + ":" + score);
+//System.out.println(key + ":" + k + ":" + score);
 			}
 		}
 		bufferedWriter.flush();
 		bufferedWriter.close();
 		fileWriter.close();
+	}
+	
+	public void computePrecisionAndRecall() throws NumberFormatException, IOException {
+		File file = new File(CommonUtil.filepath + CommonUtil.test_set);
+		BufferedReader br = new BufferedReader(new FileReader(file));
+		int count = 0;//统计每个用户的点击总数
+		double sumScore = 0;//累加每个用户的总分数
+		double average = 0;//计算得到的平均值
+		String lastuid = null;//上一个用户id
+		String line = null;
+		while((line = br.readLine()) != null) {
+			String[] parts = line.split(CommonUtil.split_char);
+			if (!parts[0].equals(lastuid) && lastuid != null) {//统计每个
+				average = sumScore / count;
+				average_score.put(lastuid, average);
+				count = 0;
+				sumScore = 0;
+			}
+			count ++;
+			sumScore += Integer.valueOf(parts[2]);
+			uids.add(Integer.valueOf(parts[0]));
+			storyids.add(Integer.valueOf(parts[1]));
+			scores.add(Integer.valueOf(parts[2]));
+			lastuid = parts[0];
+		}
+		//添加最后一个用户
+		average = sumScore / count;
+		average_score.put(lastuid, average);
 	}
 	
 	public static void main(String[] args) throws IOException {
@@ -178,6 +235,8 @@ System.out.println(key + ":" + k + ":" + score);
 		NPS.summarizeClicks();
 		NPS.readUids(CommonUtil.filepath + CommonUtil.uid_set);
 		NPS.writeToFile(CommonUtil.filepath + CommonUtil.recommand_scores);
+		NPS.computePrecisionAndRecall();
+		NPS.writeCandidate(CommonUtil.filepath + CommonUtil.candidate);
 		NPS.admin.close();
 	}
 }

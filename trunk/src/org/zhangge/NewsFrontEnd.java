@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -41,15 +42,16 @@ public class NewsFrontEnd {
 	public static void main(String[] args) throws IOException, InterruptedException {
 		NewsFrontEnd nfe = new NewsFrontEnd();
 		nfe.readData(CommonUtil.filepath + CommonUtil.train_set);
-		nfe.writeData(CommonUtil.filepath + CommonUtil.uid_set);
+		nfe.writeUidData(CommonUtil.filepath + CommonUtil.uid_set);
+		nfe.writeAverageData(CommonUtil.filepath + CommonUtil.average_set);
 	}
 	
 	/**
-	 * 把平均值和用户id写到一个文件里面去，以便再用
+	 * 把用户id写到一个文件里面去，以便再用
 	 * @param filepath
 	 * @throws IOException 
 	 */
-	public void writeData(String filepath) throws IOException {
+	public void writeUidData(String filepath) throws IOException {
 		HashSet<Integer> unique_uids = new HashSet<Integer>();
 		for (Integer uid : uids) {
 			unique_uids.add(uid);
@@ -69,7 +71,26 @@ public class NewsFrontEnd {
 	}
 	
 	/**
-	 * 把Movieline的数据写入数据库
+	 * 把平均值写到一个文件里面去，以便再用
+	 * @param filepath
+	 * @throws IOException
+	 */
+	public void writeAverageData(String filepath) throws IOException {
+		FileWriter fileWriter = new FileWriter(filepath);
+		BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
+		Set<String> akeys = average_score.keySet();
+		for (String key : akeys) {
+			Double average = average_score.get(key);
+			bufferedWriter.write(key + ":" + average);
+			bufferedWriter.newLine();
+		}
+		bufferedWriter.flush();
+		bufferedWriter.close();
+		fileWriter.close();
+	}
+	
+	/**
+	 * 把Movieline的数据解析到内存，然后写入数据库
 	 * @param filepath
 	 */
 	public void readData(String filepath) {

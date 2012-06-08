@@ -38,13 +38,13 @@ public class MinHashMapper extends TableMapper<ImmutableBytesWritable, Immutable
 				Integer seed = Integer.valueOf(br.readLine());
 				//这是方法一，由种子值获得对应hash函数，缺点是：hash函数太少了。
 //				HashFunction hashFun = hashFunction.getHashFunction(seed);
-				int minValue = Integer.MAX_VALUE;
+				long minValue = Long.MAX_VALUE;
 				for (KeyValue kv : values.list()) {
 					String storyId = Bytes.toString(kv.getQualifier());//拿到的是列，而不是值
 //					long tempValue = hashFun.hash(storyId);
 					//方法二，直接由种子值作为hash函数的发生器
 					byte[] hashKey = Bytes.toBytes(storyId);
-					int tempValue = Math.abs(MurmurHash.hash32(hashKey, hashKey.length, seed));
+					long tempValue = Math.abs(MurmurHash.hash64(hashKey, hashKey.length, seed));
 					if (tempValue < minValue) {
 						minValue = tempValue;
 					}
