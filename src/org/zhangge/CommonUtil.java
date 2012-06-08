@@ -13,5 +13,7 @@ public class CommonUtil {
 	
 	public static int MinHash_q = 20;//MinHash里面的q，就是每个用户所属集群的数量
 	public static int MinHash_p = 2;//MinHash里面的p，就是产生集群id所连接的hash值的个数
-	public static int MinHash_StandardClusterSize = 3;//精确一个集群的大小，最少10人
+	public static int MinHash_StandardClusterSize = 2;//精确一个集群的大小，最少10人
+	
+	public static String filepath = "/home/zhangge/workspace/PersonalizationRecomendations/ml-100k/";//文件的路径
 }

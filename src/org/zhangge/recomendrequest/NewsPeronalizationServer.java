@@ -1,8 +1,10 @@
 package org.zhangge.recomendrequest;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -141,16 +143,28 @@ public class NewsPeronalizationServer {
 		ranklist.put(uid, scores);
 	}
 	
-	public void writeToFile() {
+	/**
+	 * 产生推荐分数写到文件里面去
+	 * @param filepath
+	 * @throws IOException
+	 */
+	public void writeToFile(String filepath) throws IOException {
+		FileWriter fileWriter = new FileWriter(filepath);
+		BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
 		Set<String> keys = ranklist.keySet();
 		for (String key : keys) {
 			Map<String, Double> scores = ranklist.get(key);
 			Set<String> ks = scores.keySet();
 			for (String k : ks) {
 				Double score = scores.get(k);
-				System.out.println(key + ":" + k + ":" + score);
+				bufferedWriter.write(key + ":" + k + ":" + score);
+				bufferedWriter.newLine();
+//System.out.println(key + ":" + k + ":" + score);
 			}
 		}
+		bufferedWriter.flush();
+		bufferedWriter.close();
+		fileWriter.close();
 	}
 	
 	public static void main(String[] args) throws IOException {
@@ -159,6 +173,6 @@ public class NewsPeronalizationServer {
 		NPS.connectToHbase();
 		NPS.summarizeClicks();
 		NPS.readUids(filepath + "uids_average");
-		NPS.writeToFile();
+		NPS.writeToFile(filepath + "recommand_scores");
 	}
 }
