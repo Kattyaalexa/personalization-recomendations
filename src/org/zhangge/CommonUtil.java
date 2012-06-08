@@ -18,12 +18,17 @@ public class CommonUtil {
 	public static String filepath = "/home/zhangge/workspace/PersonalizationRecomendations/ml-100k/";//文件的路径
 	public static String train_set = "u1.base";//训练学习数据
 	public static String test_set = "u1.test";//测试验证数据
+
 	public static String uid_set = "uids.set";//用于存放用户id
 	public static String average_set = "averager.set";//用于存放每个用户的平均值
 	public static String seedvalue = "SeedValues";//存放随机种子值的文件
 	public static String recommand_scores = "recommand_scores";//存放推荐分数
 	public static String candidate = "candidate.set";//用于存放候选story
+	
 	public static String split_char = "\t";//movieline的数据分隔符
 	public static String split_cluster = "%";//在mapreduce传送当中分开clusterid和cluster编号
+	public static String split_average = ":";//存放用户平均分数的分隔符
+	
+	public static int recommond_number = 100;//推荐数目
 	
 }

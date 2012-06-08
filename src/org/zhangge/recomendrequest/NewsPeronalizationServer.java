@@ -7,8 +7,12 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -40,6 +44,10 @@ public class NewsPeronalizationServer {
 	private ArrayList<Integer> scores = new ArrayList<Integer>();//用于存放打分
 	private Map<String, Double> average_score = new HashMap<String, Double>();//存放每个用户的平均分数
 	private Map<String, Set<String>> candidate = new HashMap<String, Set<String>>();//存放候选story
+	private double bingo = 0;//推荐和test数据集的交集个数
+	private double recommand_size = 0;//推荐的个数
+	private double precision = 0;
+	private double recall = 0;
 	
 	/**
 	 * 维护每个集群的总点击数
@@ -93,6 +101,7 @@ public class NewsPeronalizationServer {
 			fetchFromUT(line);
 			makeRankedStories(line);
 		}
+		br.close();
 	}
 	
 	/**
@@ -178,55 +187,120 @@ public class NewsPeronalizationServer {
 	}
 	
 	/**
+	 * 对推荐列表进行排序
+	 * @param oriMap
+	 * @return
+	 */
+	public Map<String, Double> sortMapByValue(Map<String, Double> oriMap) {  
+	    Map<String, Double> sortedMap = new LinkedHashMap<String, Double>();  
+	    if (oriMap != null && !oriMap.isEmpty()) {  
+	        List<Map.Entry<String, Double>> entryList = new ArrayList<Map.Entry<String, Double>>(oriMap.entrySet());  
+	        Collections.sort(entryList, new Comparator<Map.Entry<String, Double>>() {
+                public int compare(Map.Entry<String, Double> o1, Map.Entry<String, Double> o2) {
+                		double result = o2.getValue() - o1.getValue();
+                		if (result > 0) {
+							return 1;
+						} else if (result < 0) {
+							return -1;
+						} else {
+							return 0;
+						}
+	                }
+				});  
+	        Iterator<Map.Entry<String, Double>> iter = entryList.iterator();  
+	        Map.Entry<String, Double> tmpEntry = null;  
+	        while (iter.hasNext()) {  
+	            tmpEntry = iter.next();  
+	            sortedMap.put(tmpEntry.getKey(), tmpEntry.getValue());  
+	        }  
+	    }  
+	    return sortedMap;  
+	}  
+	
+	/**
 	 * 产生推荐分数写到文件里面去
 	 * @param filepath
 	 * @throws IOException
 	 */
-	public void writeToFile(String filepath) throws IOException {
+	public void writeScoreToFile(String filepath) throws IOException {
 		FileWriter fileWriter = new FileWriter(filepath);
 		BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
 		Set<String> keys = ranklist.keySet();
 		for (String key : keys) {
+			int i = 1;
 			Map<String, Double> scores = ranklist.get(key);
+			scores = sortMapByValue(scores);
 			Set<String> ks = scores.keySet();
 			for (String k : ks) {
-				Double score = scores.get(k);
-				bufferedWriter.write(key + ":" + k + ":" + score);
-				bufferedWriter.newLine();
+				if (i <= CommonUtil.recommond_number) {
+					Double score = scores.get(k);
+					bufferedWriter.write(i + ":" + key + ":" + k + ":" + score);
+					bufferedWriter.newLine();
+					i ++;
 //System.out.println(key + ":" + k + ":" + score);
+				}
 			}
+			ranklist.put(key, scores);
 		}
 		bufferedWriter.flush();
 		bufferedWriter.close();
 		fileWriter.close();
 	}
 	
+	/**
+	 * 计算precision和call
+	 * @throws NumberFormatException
+	 * @throws IOException
+	 */
 	public void computePrecisionAndRecall() throws NumberFormatException, IOException {
+		//读取test数据集
 		File file = new File(CommonUtil.filepath + CommonUtil.test_set);
 		BufferedReader br = new BufferedReader(new FileReader(file));
-		int count = 0;//统计每个用户的点击总数
-		double sumScore = 0;//累加每个用户的总分数
-		double average = 0;//计算得到的平均值
-		String lastuid = null;//上一个用户id
 		String line = null;
 		while((line = br.readLine()) != null) {
 			String[] parts = line.split(CommonUtil.split_char);
-			if (!parts[0].equals(lastuid) && lastuid != null) {//统计每个
-				average = sumScore / count;
-				average_score.put(lastuid, average);
-				count = 0;
-				sumScore = 0;
-			}
-			count ++;
-			sumScore += Integer.valueOf(parts[2]);
 			uids.add(Integer.valueOf(parts[0]));
 			storyids.add(Integer.valueOf(parts[1]));
 			scores.add(Integer.valueOf(parts[2]));
-			lastuid = parts[0];
 		}
-		//添加最后一个用户
-		average = sumScore / count;
-		average_score.put(lastuid, average);
+		br.close();
+		//读取平均分数
+		File file2 = new File(CommonUtil.filepath + CommonUtil.average_set);
+		BufferedReader br2 = new BufferedReader(new FileReader(file2));
+		String line2 = null;
+		while((line2 = br2.readLine()) != null) {
+			String[] parts = line2.split(CommonUtil.split_average);
+			average_score.put(parts[0], Double.valueOf(parts[1]));
+		}
+		br2.close();
+		
+		for (int i = 0; i < uids.size(); i++) {
+			Integer uid = uids.get(i);
+			if (scores.get(i) >= average_score.get(uid.toString())) {
+				Map<String, Double> scoresMap = ranklist.get(uid.toString());
+				if (scoresMap.containsKey(storyids.get(i).toString())) {
+					bingo ++;
+				}
+			}
+		}
+		
+		Set<String> uidSet = ranklist.keySet();
+		for (String us : uidSet) {
+			Map<String, Double> scoreMap = ranklist.get(us);
+			if (scoreMap.size() <= CommonUtil.recommond_number) {
+				recommand_size += scoreMap.size();
+			} else {
+				recommand_size += CommonUtil.recommond_number;
+			}
+		}
+		
+		precision = bingo / recommand_size;
+		recall = bingo / uids.size();
+System.out.println("bingo:" + bingo);
+System.out.println("recommand_size:" + recommand_size);
+System.out.println("uids.size:" + uids.size());
+System.out.println("precision:" + precision);
+System.out.println("recall:" + recall);
 	}
 	
 	public static void main(String[] args) throws IOException {
@@ -234,7 +308,7 @@ public class NewsPeronalizationServer {
 		NPS.connectToHbase();
 		NPS.summarizeClicks();
 		NPS.readUids(CommonUtil.filepath + CommonUtil.uid_set);
-		NPS.writeToFile(CommonUtil.filepath + CommonUtil.recommand_scores);
+		NPS.writeScoreToFile(CommonUtil.filepath + CommonUtil.recommand_scores);
 		NPS.computePrecisionAndRecall();
 		NPS.writeCandidate(CommonUtil.filepath + CommonUtil.candidate);
 		NPS.admin.close();
