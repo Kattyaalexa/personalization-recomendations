@@ -4,11 +4,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -29,7 +25,6 @@ public class NewsStatisticsServer {
 	private Result user_clusters;
 	private Result story_clicktimes;
 	private HBaseAdmin admin;
-	private Map<String, Set<String>> clusters = new HashMap<String, Set<String>>();
 
 	/**
 	 * 连接hbase数据库
@@ -95,7 +90,7 @@ public class NewsStatisticsServer {
 					byte[] click_times = story_clicktimes.getValue(Bytes.toBytes(CommonUtil.ST_Family1), Bytes.toBytes(clusterId));
 					Integer clicktimes = 0;
 					if (click_times != null) {//不为空则加1，否则初始设为1
-						System.out.println(new String(click_times));
+//System.out.println(new String(click_times));
 						clicktimes = Integer.valueOf(new String(click_times)) + 1;
 					} else {
 						clicktimes = 1;
@@ -119,52 +114,14 @@ public class NewsStatisticsServer {
 		String line = null;
 		while((line = br.readLine()) != null) {
 			fetchFromUT(line);
-			//test2(line);
 			updateST();
-		}
-	}
-	
-	public void test() throws IOException {
-		String storyid = "995";
-		fetchFromST(storyid);
-		String clusterId = "124732948211466543";
-		byte[] click_times = story_clicktimes.getValue(Bytes.toBytes(CommonUtil.ST_Family1), Bytes.toBytes(clusterId));
-		System.out.println(Bytes.toString(click_times));
-	}
-	
-	public void test2(String uid) {
-		Set<String> us;
-		List<KeyValue> cs = user_clusters.list();
-		if (cs != null)
-		for (KeyValue kv1 : cs) {
-			String c = Bytes.toString(kv1.getValue());
-			us = clusters.get(c);
-			if (us == null) {
-				us = new HashSet<String>();
-			}
-			us.add(uid);
-			clusters.put(c, us);
-		}
-	}
-	
-	public void test3() {
-		Set<String> sks = clusters.keySet();
-		for (String sk : sks) {
-			Set<String> us = clusters.get(sk);
-			System.out.print(sk + "---");
-			for (String u : us) {
-				System.out.print(u + ":");
-			}
-			System.out.println();
 		}
 	}
 	
 	public static void main(String[] args) throws IOException {
 		NewsStatisticsServer NSS = new NewsStatisticsServer();
 		NSS.connectToHbase();
-		//NSS.test();
 		NSS.readUids(CommonUtil.filepath + CommonUtil.uid_set);
-		//NSS.test3();
 		NSS.admin.close();
 	}
 }
