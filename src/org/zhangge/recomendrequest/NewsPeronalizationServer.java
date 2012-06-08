@@ -113,10 +113,13 @@ public class NewsPeronalizationServer {
 	/**
 	 * 根据uid产生推荐分数
 	 * @param uid
+	 * @throws IOException 
 	 */
-	public void makeRankedStories(String uid) {
+	public void makeRankedStories(String uid) throws IOException {
 		Map<String, Double> scores = new HashMap<String, Double>();
 		List<KeyValue> clustersList = user_clusters.list();
+		FileWriter fileWriter = new FileWriter(CommonUtil.filepath + CommonUtil.candidate);
+		BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
 		if (clustersList != null) {
 			for (KeyValue cluster : clustersList) {//遍历用户所有的集群
 				byte[] clusterid = cluster.getValue();
@@ -126,10 +129,12 @@ public class NewsPeronalizationServer {
 						byte[] story_clicktimes = result.getValue(Bytes.toBytes(CommonUtil.ST_Family1), clusterid);
 						if (story_clicktimes != null) {
 							String storyId = new String(result.getRow());
+bufferedWriter.write(Bytes.toString(clusterid) + ":" + storyId);
+bufferedWriter.newLine();
 							Double sum = Double.valueOf(sum_clicks.get(new String(clusterid)));
 							Double clicks = Double.valueOf(new String(story_clicktimes));
 							Double score = clicks / sum;
-System.out.println(storyId + ":" + clicks + ":" + sum + ":" + score);
+//System.out.println(storyId + ":" + clicks + ":" + sum + ":" + score);
 							if (scores.containsKey(storyId)) {
 								scores.put(storyId, scores.get(storyId) + score);
 							} else {
