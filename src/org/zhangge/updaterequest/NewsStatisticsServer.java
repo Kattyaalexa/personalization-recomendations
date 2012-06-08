@@ -4,12 +4,17 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -23,6 +28,8 @@ public class NewsStatisticsServer {
 	private Result user_storys;
 	private Result user_clusters;
 	private Result story_clicktimes;
+	private HBaseAdmin admin;
+	private Map<String, Set<String>> clusters = new HashMap<String, Set<String>>();
 
 	/**
 	 * 连接hbase数据库
@@ -30,6 +37,17 @@ public class NewsStatisticsServer {
 	 */
 	public void connectToHbase() throws IOException {
 		Configuration config = HBaseConfiguration.create();
+		admin = new HBaseAdmin(config);
+		
+//		admin.disableTable(Bytes.toBytes(CommonUtil.ST));
+//		admin.deleteTable(Bytes.toBytes(CommonUtil.ST));
+//		//创建ST表
+//				HTableDescriptor htd2 = new HTableDescriptor(CommonUtil.ST);
+//				HColumnDescriptor hcd3 = new HColumnDescriptor(CommonUtil.ST_Family1);
+//				HColumnDescriptor hcd4 = new HColumnDescriptor(CommonUtil.ST_Family2);
+//				htd2.addFamily(hcd3);
+//				htd2.addFamily(hcd4);
+//				admin.createTable(htd2);
 		
 		usertable = new HTable(config, CommonUtil.UT.getBytes());
 		storytable = new HTable(config, CommonUtil.ST.getBytes());
@@ -68,36 +86,23 @@ public class NewsStatisticsServer {
 	public void updateST() throws IOException {
 		List<KeyValue> cluster_result = user_clusters.list();
 		List<KeyValue> story_result = user_storys.list();
-		if (cluster_result != null) {
-			for (KeyValue cluster : cluster_result) {//遍历用户的所有的集群
-				String clusterId = new String(cluster.getValue());//获取集群id
-				if (story_result != null) {
-					for (KeyValue story : story_result) {//遍历用户的所有的点击历史
-						String storyId = new String(story.getQualifier());//获取story id
-						fetchFromST(storyId);//首先获取ST表原来的信息
-						List<KeyValue> story_click = story_clicktimes.list();
-						if (story_click != null) {//如果初始表为空
-							for (KeyValue keyValue : story_click) {//遍历单一点击历史在ST表的所有信息
-								byte[] qualifier = keyValue.getQualifier();
-								String clusterid;
-								Integer clicktimes;
-								if (story_result == null) {//如果初始的时候没有数据
-									clusterid = clusterId;
-									clicktimes = 1;
-								} else {
-									clusterid = new String(qualifier);
-									clicktimes = Integer.valueOf(new String(keyValue.getValue())) + 1;
-								}
-								Put put = new Put(story.getQualifier());
-								put.add(keyValue.getFamily(), Bytes.toBytes(clusterid), keyValue.getTimestamp(), Bytes.toBytes(clicktimes.toString()));
-								storytable.put(put);
-							}
-						} else {
-							Put put = new Put(story.getQualifier());
-							put.add(Bytes.toBytes(CommonUtil.ST_Family1), Bytes.toBytes(clusterId), story.getTimestamp(), Bytes.toBytes(new String("1")));
-							storytable.put(put);
-						}
+		for (KeyValue story : story_result) {//遍历用户的所有的点击历史
+			String storyId = new String(story.getQualifier());//获取story id
+			fetchFromST(storyId);//首先获取ST表原来的信息
+			if (cluster_result != null) {
+				for (KeyValue cluster : cluster_result) {//遍历用户的所有的集群
+					String clusterId = new String(cluster.getValue());//获取集群id
+					byte[] click_times = story_clicktimes.getValue(Bytes.toBytes(CommonUtil.ST_Family1), Bytes.toBytes(clusterId));
+					Integer clicktimes = 0;
+					if (click_times != null) {//不为空则加1，否则初始设为1
+						System.out.println(new String(click_times));
+						clicktimes = Integer.valueOf(new String(click_times)) + 1;
+					} else {
+						clicktimes = 1;
 					}
+					Put put = new Put(story.getQualifier());
+					put.add(Bytes.toBytes(CommonUtil.ST_Family1), Bytes.toBytes(clusterId), story.getTimestamp(), Bytes.toBytes(new String(clicktimes.toString())));
+					storytable.put(put);
 				}
 			}
 		}
@@ -114,15 +119,52 @@ public class NewsStatisticsServer {
 		String line = null;
 		while((line = br.readLine()) != null) {
 			fetchFromUT(line);
+			//test2(line);
 			updateST();
 		}
 	}
 	
+	public void test() throws IOException {
+		String storyid = "995";
+		fetchFromST(storyid);
+		String clusterId = "124732948211466543";
+		byte[] click_times = story_clicktimes.getValue(Bytes.toBytes(CommonUtil.ST_Family1), Bytes.toBytes(clusterId));
+		System.out.println(Bytes.toString(click_times));
+	}
+	
+	public void test2(String uid) {
+		Set<String> us;
+		List<KeyValue> cs = user_clusters.list();
+		if (cs != null)
+		for (KeyValue kv1 : cs) {
+			String c = Bytes.toString(kv1.getValue());
+			us = clusters.get(c);
+			if (us == null) {
+				us = new HashSet<String>();
+			}
+			us.add(uid);
+			clusters.put(c, us);
+		}
+	}
+	
+	public void test3() {
+		Set<String> sks = clusters.keySet();
+		for (String sk : sks) {
+			Set<String> us = clusters.get(sk);
+			System.out.print(sk + "---");
+			for (String u : us) {
+				System.out.print(u + ":");
+			}
+			System.out.println();
+		}
+	}
+	
 	public static void main(String[] args) throws IOException {
-		String filepath = "/home/zhangge/workspace/PersonalizationRecomendations/ml-100k/";
 		NewsStatisticsServer NSS = new NewsStatisticsServer();
 		NSS.connectToHbase();
-		
-		NSS.readUids(filepath + "uids_average");
+		//NSS.test();
+		NSS.readUids(CommonUtil.filepath + CommonUtil.uid_set);
+		//NSS.test3();
+		NSS.admin.close();
 	}
 }

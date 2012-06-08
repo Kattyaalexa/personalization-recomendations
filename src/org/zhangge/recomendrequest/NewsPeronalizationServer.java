@@ -16,6 +16,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Get;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -32,6 +33,7 @@ public class NewsPeronalizationServer {
 	private Map<String, Map<String, Double>> ranklist = new HashMap<String, Map<String, Double>>();//存放推荐分数列表
 	private List<Result> storyList = new ArrayList<Result>();
 	private ResultScanner rs;
+	private HBaseAdmin admin;
 	
 	/**
 	 * 维护每个集群的总点击数
@@ -54,10 +56,10 @@ public class NewsPeronalizationServer {
 				}
 			}
 		}
-//		Set<String> keys = sum_clicks.keySet();
-//		for (String key : keys) {
-//			System.out.println(key + ": " + sum_clicks.get(key));
-//		}
+		Set<String> keys = sum_clicks.keySet();
+		for (String key : keys) {
+			System.out.println(key + ": " + sum_clicks.get(key));
+		}
 	}
 	
 	/**
@@ -66,6 +68,7 @@ public class NewsPeronalizationServer {
 	 */
 	public void connectToHbase() throws IOException {
 		Configuration config = HBaseConfiguration.create();
+		admin = new HBaseAdmin(config);
 		
 		usertable = new HTable(config, CommonUtil.UT.getBytes());
 		storytable = new HTable(config, CommonUtil.ST.getBytes());
@@ -120,20 +123,17 @@ public class NewsPeronalizationServer {
 				String column = new String(cluster.getQualifier());
 				if (column.substring(0, 9).equals(CommonUtil.UT_Family2_Column)) {
 					for (Result result : storyList) {//遍历所有的story
-						List<KeyValue> resultList = result.list();
-						if (resultList != null) {
-							for (KeyValue keyValue : resultList) {//遍历每个story的集群信息
-								if (Bytes.equals(clusterid, keyValue.getQualifier())) {
-									String storyId = new String(keyValue.getRow());
-									Double sum = Double.valueOf(sum_clicks.get(new String(clusterid)));
-									Double clicks = Double.valueOf(new String(keyValue.getValue()));
-									Double score = clicks / sum;
-									if (scores.containsKey(storyId)) {
-										scores.put(storyId, scores.get(storyId) + score);
-									} else {
-										scores.put(storyId, score);
-									}
-								}
+						byte[] story_clicktimes = result.getValue(Bytes.toBytes(CommonUtil.ST_Family1), clusterid);
+						if (story_clicktimes != null) {
+							String storyId = new String(result.getRow());
+							Double sum = Double.valueOf(sum_clicks.get(new String(clusterid)));
+							Double clicks = Double.valueOf(new String(story_clicktimes));
+							Double score = clicks / sum;
+System.out.println(storyId + ":" + clicks + ":" + sum + ":" + score);
+							if (scores.containsKey(storyId)) {
+								scores.put(storyId, scores.get(storyId) + score);
+							} else {
+								scores.put(storyId, score);
 							}
 						}
 					}
@@ -159,7 +159,7 @@ public class NewsPeronalizationServer {
 				Double score = scores.get(k);
 				bufferedWriter.write(key + ":" + k + ":" + score);
 				bufferedWriter.newLine();
-//System.out.println(key + ":" + k + ":" + score);
+System.out.println(key + ":" + k + ":" + score);
 			}
 		}
 		bufferedWriter.flush();
@@ -168,11 +168,11 @@ public class NewsPeronalizationServer {
 	}
 	
 	public static void main(String[] args) throws IOException {
-		String filepath = "/home/zhangge/workspace/PersonalizationRecomendations/ml-100k/";
 		NewsPeronalizationServer NPS = new NewsPeronalizationServer();
 		NPS.connectToHbase();
 		NPS.summarizeClicks();
-		NPS.readUids(filepath + "uids_average");
-		NPS.writeToFile(filepath + "recommand_scores");
+		NPS.readUids(CommonUtil.filepath + CommonUtil.uid_set);
+		NPS.writeToFile(CommonUtil.filepath + CommonUtil.recommand_scores);
+		NPS.admin.close();
 	}
 }

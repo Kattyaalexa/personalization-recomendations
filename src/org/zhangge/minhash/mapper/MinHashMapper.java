@@ -24,7 +24,7 @@ public class MinHashMapper extends TableMapper<ImmutableBytesWritable, Immutable
 			throws IOException, InterruptedException {
 		
 //		File file = new File(DistributedCache.getLocalCacheFiles(context.getConfiguration())[0].toString()+"/SeedValues");
-		File file = new File("/home/zhangge/SeedValues");
+		File file = new File(CommonUtil.filepath + CommonUtil.seedvalue);
 		FileReader fr = new FileReader(file);
 		BufferedReader br = new BufferedReader(fr);
 		
@@ -32,26 +32,26 @@ public class MinHashMapper extends TableMapper<ImmutableBytesWritable, Immutable
 		ImmutableBytesWritable key = null;
 		List<StringBuilder> clusterIds = new ArrayList<StringBuilder>();
 		
-		for (int i = 0; i < CommonUtil.MinHash_q; i++) {
+		for (int i = 0; i < CommonUtil.MinHash_q; i++) {//循环q个集群
 			StringBuilder clusterId = new StringBuilder();
-			for (int j = 0; j < CommonUtil.MinHash_p; j++) {
+			for (int j = 0; j < CommonUtil.MinHash_p; j++) {//连接p个hash值作为一个集群id
 				Integer seed = Integer.valueOf(br.readLine());
 				//这是方法一，由种子值获得对应hash函数，缺点是：hash函数太少了。
 //				HashFunction hashFun = hashFunction.getHashFunction(seed);
-				long minValue = Long.MAX_VALUE;
+				int minValue = Integer.MAX_VALUE;
 				for (KeyValue kv : values.list()) {
 					String storyId = Bytes.toString(kv.getQualifier());//拿到的是列，而不是值
 //					long tempValue = hashFun.hash(storyId);
 					//方法二，直接由种子值作为hash函数的发生器
 					byte[] hashKey = Bytes.toBytes(storyId);
-					long tempValue = Math.abs(MurmurHash.hash32(hashKey, hashKey.length, seed));
+					int tempValue = Math.abs(MurmurHash.hash32(hashKey, hashKey.length, seed));
 					if (tempValue < minValue) {
 						minValue = tempValue;
 					}
 				}
 				clusterId.append(minValue);
 			}
-			clusterId.append("%").append(i+1);
+			clusterId.append(CommonUtil.split_cluster).append(i+1);//这个问题先放一放
 			clusterIds.add(clusterId);
 		}
 		

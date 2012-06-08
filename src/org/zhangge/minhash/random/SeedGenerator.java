@@ -16,7 +16,7 @@ public class SeedGenerator {
 
 	public static void main(String[] args) throws IOException {
 //		SeedGenerator sg = new SeedGenerator();
-		new SeedGenerator().generateSeeds(CommonUtil.MinHash_p * CommonUtil.MinHash_q, CommonUtil.filepath + "SeedValues");
+		new SeedGenerator().generateSeeds(CommonUtil.MinHash_p * CommonUtil.MinHash_q, CommonUtil.filepath + CommonUtil.seedvalue);
 //		System.out.println(sg.getOneSeed());
 	}
 	
