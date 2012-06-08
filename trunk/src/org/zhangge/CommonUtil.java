@@ -13,7 +13,15 @@ public class CommonUtil {
 	
 	public static int MinHash_q = 20;//MinHash里面的q，就是每个用户所属集群的数量
 	public static int MinHash_p = 2;//MinHash里面的p，就是产生集群id所连接的hash值的个数
-	public static int MinHash_StandardClusterSize = 2;//精确一个集群的大小，最少10人
+	public static int MinHash_StandardClusterSize = 5;//精确一个集群的大小，最少10人
 	
 	public static String filepath = "/home/zhangge/workspace/PersonalizationRecomendations/ml-100k/";//文件的路径
+	public static String train_set = "u1.base";//训练学习数据
+	public static String test_set = "u1.test";//测试验证数据
+	public static String uid_set = "uids.set";//用于存放用户id
+	public static String seedvalue = "SeedValues";//存放随机种子值的文件
+	public static String recommand_scores = "recommand_scores";//存放推荐分数
+	public static String split_char = "\t";//movieline的数据分隔符
+	public static String split_cluster = "%";//在mapreduce传送当中分开clusterid和cluster编号
+	
 }

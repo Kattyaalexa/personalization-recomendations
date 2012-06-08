@@ -30,17 +30,18 @@ import org.apache.hadoop.hbase.util.Bytes;
  */
 public class NewsFrontEnd {
 
+	//解析movieline的数据，读取到内存里面
 	private ArrayList<Integer> uids = new ArrayList<Integer>();//用于存放用户id
 	private ArrayList<Integer> storyids = new ArrayList<Integer>();//用于存放story id
 	private ArrayList<Integer> scores = new ArrayList<Integer>();//用于存放打分
 	private ArrayList<Long> timestamp = new ArrayList<Long>();//用于存放时间
-	private Map<String, Double> average_score = new HashMap<String, Double>();//存放每个用户的平局分数
-	private double average;
+	
+	private Map<String, Double> average_score = new HashMap<String, Double>();//存放每个用户的平均分数
 	
 	public static void main(String[] args) throws IOException, InterruptedException {
 		NewsFrontEnd nfe = new NewsFrontEnd();
-		nfe.readData(CommonUtil.filepath + "u1.base");
-		nfe.writeData(CommonUtil.filepath + "uids_average");
+		nfe.readData(CommonUtil.filepath + CommonUtil.train_set);
+		nfe.writeData(CommonUtil.filepath + CommonUtil.uid_set);
 	}
 	
 	/**
@@ -75,19 +76,16 @@ public class NewsFrontEnd {
 		try {
 			File file = new File(filepath);
 			BufferedReader br = new BufferedReader(new FileReader(file));
-			int count = 0;//统计 总数
-			double sumScore = 0;//累加总分数
-			String lastuid = null;
+			int count = 0;//统计每个用户的点击总数
+			double sumScore = 0;//累加每个用户的总分数
+			double average = 0;//计算得到的平均值
+			String lastuid = null;//上一个用户id
 			String line = null;
 			while((line = br.readLine()) != null) {
-				String[] parts = line.split("\t");
-				if (!parts[0].equals(lastuid) && lastuid != null) {
+				String[] parts = line.split(CommonUtil.split_char);
+				if (!parts[0].equals(lastuid) && lastuid != null) {//统计每个
 					average = sumScore / count;
 					average_score.put(lastuid, average);
-					System.out.println(sumScore);
-					System.out.println(count);
-					System.out.println(average);
-	
 					count = 0;
 					sumScore = 0;
 				}
@@ -99,7 +97,9 @@ public class NewsFrontEnd {
 				timestamp.add(Long.valueOf(parts[3]));
 				lastuid = parts[0];
 			}
-//			average = sumScore / count;
+			//添加最后一个用户
+			average = sumScore / count;
+			average_score.put(lastuid, average);
 			generateToHbase(uids.size());
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -122,6 +122,7 @@ public class NewsFrontEnd {
 		Configuration config = HBaseConfiguration.create();
 		HBaseAdmin admin = new HBaseAdmin(config);
 		
+		//先删除旧表
 		admin.disableTable(Bytes.toBytes(CommonUtil.UT));
 		admin.deleteTable(Bytes.toBytes(CommonUtil.UT));
 		admin.disableTable(Bytes.toBytes(CommonUtil.ST));
@@ -151,14 +152,15 @@ public class NewsFrontEnd {
 		
 		HTable table = new HTable(config, tablename);
 		for (int i = 0; i < count; i++) {
-			if (scores.get(i) > average_score.get(uids.get(i).toString())) {
-				byte[] row = Bytes.toBytes(uids.get(i).toString());
+			String uid = uids.get(i).toString();
+			if (scores.get(i) > average_score.get(uid)) {
+				byte[] row = Bytes.toBytes(uid);
 				Put put = new Put(row);
 				byte[] family = Bytes.toBytes(CommonUtil.UT_Family1);
 				put.add(family, Bytes.toBytes(storyids.get(i).toString()), timestamp.get(i), Bytes.toBytes(timestamp.get(i).toString()));
-				//put.add(databytes, Bytes.toBytes(storyids.get(i).toString()), Bytes.toBytes(String.valueOf(date.getTime())));
 				table.put(put);
 			}
 		}
+		admin.close();
 	}
 }
