@@ -21,6 +21,7 @@ public class CommonUtil {
 	public static String uid_set = "uids.set";//用于存放用户id
 	public static String seedvalue = "SeedValues";//存放随机种子值的文件
 	public static String recommand_scores = "recommand_scores";//存放推荐分数
+	public static String candidate = "candidate.set";//用于存放候选story
 	public static String split_char = "\t";//movieline的数据分隔符
 	public static String split_cluster = "%";//在mapreduce传送当中分开clusterid和cluster编号
 	
