@@ -24,7 +24,7 @@ public class NewsStatisticsServer {
 	private Result user_storys;
 	private Result user_clusters;
 	private Result story_clicktimes;
-	private HBaseAdmin admin;
+	public HBaseAdmin admin;
 
 	/**
 	 * 连接hbase数据库
@@ -33,16 +33,6 @@ public class NewsStatisticsServer {
 	public void connectToHbase() throws IOException {
 		Configuration config = HBaseConfiguration.create();
 		admin = new HBaseAdmin(config);
-		
-//		admin.disableTable(Bytes.toBytes(CommonUtil.ST));
-//		admin.deleteTable(Bytes.toBytes(CommonUtil.ST));
-//		//创建ST表
-//				HTableDescriptor htd2 = new HTableDescriptor(CommonUtil.ST);
-//				HColumnDescriptor hcd3 = new HColumnDescriptor(CommonUtil.ST_Family1);
-//				HColumnDescriptor hcd4 = new HColumnDescriptor(CommonUtil.ST_Family2);
-//				htd2.addFamily(hcd3);
-//				htd2.addFamily(hcd4);
-//				admin.createTable(htd2);
 		
 		usertable = new HTable(config, CommonUtil.UT.getBytes());
 		storytable = new HTable(config, CommonUtil.ST.getBytes());
@@ -86,7 +76,7 @@ public class NewsStatisticsServer {
 			fetchFromST(storyId);//首先获取ST表原来的信息
 			if (cluster_result != null) {
 				for (KeyValue cluster : cluster_result) {//遍历用户的所有的集群
-					String clusterId = new String(cluster.getValue());//获取集群id
+					String clusterId = new String(cluster.getQualifier());//获取集群id
 					byte[] click_times = story_clicktimes.getValue(Bytes.toBytes(CommonUtil.ST_Family1), Bytes.toBytes(clusterId));
 					Integer clicktimes = 0;
 					if (click_times != null) {//不为空则加1，否则初始设为1

@@ -38,7 +38,7 @@ public class NewsPeronalizationServer {
 	private Map<String, Map<String, Double>> ranklist = new HashMap<String, Map<String, Double>>();//存放推荐分数列表
 	private List<Result> storyList = new ArrayList<Result>();
 	private ResultScanner rs;
-	private HBaseAdmin admin;
+	public HBaseAdmin admin;
 	private ArrayList<Integer> uids = new ArrayList<Integer>();//用于存放用户id
 	private ArrayList<Integer> storyids = new ArrayList<Integer>();//用于存放story id
 	private ArrayList<Integer> scores = new ArrayList<Integer>();//用于存放打分
@@ -46,9 +46,44 @@ public class NewsPeronalizationServer {
 	private Map<String, Set<String>> candidate = new HashMap<String, Set<String>>();//存放候选story
 	private double bingo = 0;//推荐和test数据集的交集个数
 	private double recommand_size = 0;//推荐的个数
+	private double test_size = 0;//test数据集的个数
 	private double precision = 0;
 	private double recall = 0;
 	
+	/**
+	 * 连接hbase数据库
+	 * @throws IOException
+	 */
+	public void connectToHbase() throws IOException {
+		Configuration config = HBaseConfiguration.create();
+		admin = new HBaseAdmin(config);
+		
+		usertable = new HTable(config, CommonUtil.UT.getBytes());
+		storytable = new HTable(config, CommonUtil.ST.getBytes());
+	}
+	
+	
+	/**
+	 * 根据uid从UT表读取用户的集群信息
+	 * @param uid
+	 * @throws IOException
+	 */
+	public void fetchFromUT(String uid) throws IOException {
+		Get get = new Get(Bytes.toBytes(uid));
+		get.addFamily(Bytes.toBytes(CommonUtil.UT_Family2));
+		user_clusters = usertable.get(get);
+	}
+	
+	/**
+	 * 从ST表读取所有的数据
+	 * @throws IOException
+	 */
+	public void fetchFromST() throws IOException {
+		Scan scan = new Scan();
+		scan.addFamily(Bytes.toBytes(CommonUtil.ST_Family1));
+		rs = storytable.getScanner(scan);
+	}
+
 	/**
 	 * 维护每个集群的总点击数
 	 * @throws IOException
@@ -77,18 +112,6 @@ public class NewsPeronalizationServer {
 	}
 	
 	/**
-	 * 连接hbase数据库
-	 * @throws IOException
-	 */
-	public void connectToHbase() throws IOException {
-		Configuration config = HBaseConfiguration.create();
-		admin = new HBaseAdmin(config);
-		
-		usertable = new HTable(config, CommonUtil.UT.getBytes());
-		storytable = new HTable(config, CommonUtil.ST.getBytes());
-	}
-	
-	/**
 	 * 读取所有的uid
 	 * @param filepath
 	 * @throws IOException
@@ -105,27 +128,6 @@ public class NewsPeronalizationServer {
 	}
 	
 	/**
-	 * 根据uid从UT表读取用户的集群信息
-	 * @param uid
-	 * @throws IOException
-	 */
-	public void fetchFromUT(String uid) throws IOException {
-		Get get = new Get(Bytes.toBytes(uid));
-		get.addFamily(Bytes.toBytes(CommonUtil.UT_Family2));
-		user_clusters = usertable.get(get);
-	}
-	
-	/**
-	 * 从ST表读取所有的数据
-	 * @throws IOException
-	 */
-	public void fetchFromST() throws IOException {
-		Scan scan = new Scan();
-		scan.addFamily(Bytes.toBytes(CommonUtil.ST_Family1));
-		rs = storytable.getScanner(scan);
-	}
-	
-	/**
 	 * 根据uid产生推荐分数
 	 * @param uid
 	 * @throws IOException 
@@ -135,28 +137,25 @@ public class NewsPeronalizationServer {
 		List<KeyValue> clustersList = user_clusters.list();
 		if (clustersList != null) {
 			for (KeyValue cluster : clustersList) {//遍历用户所有的集群
-				byte[] clusterid = cluster.getValue();
-				String column = new String(cluster.getQualifier());
-				if (column.substring(0, 9).equals(CommonUtil.UT_Family2_Column)) {
-					for (Result result : storyList) {//遍历所有的story
-						byte[] story_clicktimes = result.getValue(Bytes.toBytes(CommonUtil.ST_Family1), clusterid);
-						if (story_clicktimes != null) {
-							String storyId = new String(result.getRow());
-							Set<String> storyIdSet = candidate.get(Bytes.toString(clusterid));
-							if (storyIdSet == null) {
-								storyIdSet = new HashSet<String>();
-							}
-							storyIdSet.add(storyId);
-							candidate.put(Bytes.toString(clusterid), storyIdSet);
-							Double sum = Double.valueOf(sum_clicks.get(new String(clusterid)));
-							Double clicks = Double.valueOf(new String(story_clicktimes));
-							Double score = clicks / sum;
+				byte[] clusterid = cluster.getQualifier();
+				for (Result result : storyList) {//遍历所有的story
+					byte[] story_clicktimes = result.getValue(Bytes.toBytes(CommonUtil.ST_Family1), clusterid);
+					if (story_clicktimes != null) {//如果这个story属于这个集群的话，就会有在这个集群的点击数
+						String storyId = new String(result.getRow());
+						Set<String> storyIdSet = candidate.get(Bytes.toString(clusterid));
+						if (storyIdSet == null) {
+							storyIdSet = new HashSet<String>();
+						}
+						storyIdSet.add(storyId);
+						candidate.put(Bytes.toString(clusterid), storyIdSet);
+						Double sum = Double.valueOf(sum_clicks.get(new String(clusterid)));
+						Double clicks = Double.valueOf(new String(story_clicktimes));
+						Double score = clicks / sum;
 //System.out.println(storyId + ":" + clicks + ":" + sum + ":" + score);
-							if (scores.containsKey(storyId)) {
-								scores.put(storyId, scores.get(storyId) + score);
-							} else {
-								scores.put(storyId, score);
-							}
+						if (scores.containsKey(storyId)) {
+							scores.put(storyId, scores.get(storyId) + score);
+						} else {
+							scores.put(storyId, score);
 						}
 					}
 				}
@@ -252,7 +251,7 @@ public class NewsPeronalizationServer {
 	 * @throws NumberFormatException
 	 * @throws IOException
 	 */
-	public void computePrecisionAndRecall() throws NumberFormatException, IOException {
+	public void computePrecisionAndRecall(String filepath) throws NumberFormatException, IOException {
 		//读取test数据集
 		File file = new File(CommonUtil.filepath + CommonUtil.test_set);
 		BufferedReader br = new BufferedReader(new FileReader(file));
@@ -277,6 +276,7 @@ public class NewsPeronalizationServer {
 		for (int i = 0; i < uids.size(); i++) {
 			Integer uid = uids.get(i);
 			if (scores.get(i) >= average_score.get(uid.toString())) {
+				test_size ++;
 				Map<String, Double> scoresMap = ranklist.get(uid.toString());
 				if (scoresMap.containsKey(storyids.get(i).toString())) {
 					bingo ++;
@@ -294,13 +294,20 @@ public class NewsPeronalizationServer {
 			}
 		}
 		
+		FileWriter fileWriter = new FileWriter(filepath, true);
+		BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
+		
 		precision = bingo / recommand_size;
-		recall = bingo / uids.size();
+		recall = bingo / test_size;
 System.out.println("bingo:" + bingo);
 System.out.println("recommand_size:" + recommand_size);
-System.out.println("uids.size:" + uids.size());
+System.out.println("test_size:" + test_size);
 System.out.println("precision:" + precision);
 System.out.println("recall:" + recall);
+		
+		bufferedWriter.write(precision + ":" + recall + "\n");
+		bufferedWriter.flush();
+		bufferedWriter.close();
 	}
 	
 	public static void main(String[] args) throws IOException {
@@ -309,7 +316,7 @@ System.out.println("recall:" + recall);
 		NPS.summarizeClicks();
 		NPS.readUids(CommonUtil.filepath + CommonUtil.uid_set);
 		NPS.writeScoreToFile(CommonUtil.filepath + CommonUtil.recommand_scores);
-		NPS.computePrecisionAndRecall();
+		NPS.computePrecisionAndRecall(CommonUtil.filepath + CommonUtil.precision_recall);
 		NPS.writeCandidate(CommonUtil.filepath + CommonUtil.candidate);
 		NPS.admin.close();
 	}

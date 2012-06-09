@@ -17,6 +17,17 @@ import org.zhangge.minhash.reducer.MinHashReducer;
 public class MinHashClient {
 
 	public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
+		MinHashClient mhc = new MinHashClient();
+		mhc.run();
+	}
+	
+	/**
+	 * 调用minhash算法把用户分集群
+	 * @throws IOException
+	 * @throws InterruptedException
+	 * @throws ClassNotFoundException
+	 */
+	public void run() throws IOException, InterruptedException, ClassNotFoundException {
 		Configuration conf = new Configuration();
 		conf = HBaseConfiguration.create(conf);
 		Job job = new Job(conf, "MinHashClient");
@@ -34,7 +45,6 @@ public class MinHashClient {
 		TableMapReduceUtil.initTableReducerJob(CommonUtil.UT,
 												MinHashReducer.class,
 												job);
-		System.exit(job.waitForCompletion(true) ? 0 : 1);
-		
+		job.waitForCompletion(true);
 	}
 }
