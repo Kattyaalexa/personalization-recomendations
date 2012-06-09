@@ -3,7 +3,6 @@ package org.zhangge;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -58,8 +57,6 @@ public class NewsFrontEnd {
 		}
 		FileWriter fileWriter = new FileWriter(filepath);
 		BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
-		//bufferedWriter.write(String.valueOf(average));
-		//bufferedWriter.newLine();
 		Iterator<Integer> uid_iterator = unique_uids.iterator();
 		while (uid_iterator.hasNext()) {
 			bufferedWriter.write(uid_iterator.next().toString());
@@ -81,7 +78,7 @@ public class NewsFrontEnd {
 		Set<String> akeys = average_score.keySet();
 		for (String key : akeys) {
 			Double average = average_score.get(key);
-			bufferedWriter.write(key + ":" + average);
+			bufferedWriter.write(key + CommonUtil.split_average + average);
 			bufferedWriter.newLine();
 		}
 		bufferedWriter.flush();
@@ -90,45 +87,39 @@ public class NewsFrontEnd {
 	}
 	
 	/**
-	 * 把Movieline的数据解析到内存，然后写入数据库
+	 * 把Movieline的数据解析到内存，计算平均分，然后写入数据库
 	 * @param filepath
+	 * @throws InterruptedException 
+	 * @throws IOException 
 	 */
-	public void readData(String filepath) {
-		try {
-			File file = new File(filepath);
-			BufferedReader br = new BufferedReader(new FileReader(file));
-			int count = 0;//统计每个用户的点击总数
-			double sumScore = 0;//累加每个用户的总分数
-			double average = 0;//计算得到的平均值
-			String lastuid = null;//上一个用户id
-			String line = null;
-			while((line = br.readLine()) != null) {
-				String[] parts = line.split(CommonUtil.split_char);
-				if (!parts[0].equals(lastuid) && lastuid != null) {//统计每个
-					average = sumScore / count;
-					average_score.put(lastuid, average);
-					count = 0;
-					sumScore = 0;
-				}
-				count ++;
-				sumScore += Integer.valueOf(parts[2]);
-				uids.add(Integer.valueOf(parts[0]));
-				storyids.add(Integer.valueOf(parts[1]));
-				scores.add(Integer.valueOf(parts[2]));
-				timestamp.add(Long.valueOf(parts[3]));
-				lastuid = parts[0];
+	public void readData(String filepath) throws IOException, InterruptedException {
+		File file = new File(filepath);
+		BufferedReader br = new BufferedReader(new FileReader(file));
+		int count = 0;//统计每个用户的点击总数
+		double sumScore = 0;//累加每个用户的总分数
+		double average = 0;//计算得到的平均值
+		String lastuid = null;//上一个用户id
+		String line = null;
+		while((line = br.readLine()) != null) {
+			String[] parts = line.split(CommonUtil.split_char);
+			if (!parts[0].equals(lastuid) && lastuid != null) {//统计每个用户的平均分
+				average = sumScore / count;
+				average_score.put(lastuid, average);
+				count = 0;
+				sumScore = 0;
 			}
-			//添加最后一个用户
-			average = sumScore / count;
-			average_score.put(lastuid, average);
-			generateToHbase(uids.size());
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+			count ++;
+			sumScore += Integer.valueOf(parts[2]);
+			uids.add(Integer.valueOf(parts[0]));
+			storyids.add(Integer.valueOf(parts[1]));
+			scores.add(Integer.valueOf(parts[2]));
+			timestamp.add(Long.valueOf(parts[3]));
+			lastuid = parts[0];
 		}
+		//添加最后一个用户
+		average = sumScore / count;
+		average_score.put(lastuid, average);
+		generateToHbase(uids.size());
 	}
 	
 	/**

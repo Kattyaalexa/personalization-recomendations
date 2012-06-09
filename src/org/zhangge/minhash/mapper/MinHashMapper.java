@@ -51,7 +51,7 @@ public class MinHashMapper extends TableMapper<ImmutableBytesWritable, Immutable
 				}
 				clusterId.append(minValue);
 			}
-			clusterId.append(CommonUtil.split_cluster).append(i+1);//这个问题先放一放
+//			clusterId.append(CommonUtil.split_cluster).append(i+1);//这个问题先放一放
 			clusterIds.add(clusterId);
 		}
 		
