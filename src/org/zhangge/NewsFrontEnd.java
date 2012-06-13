@@ -31,8 +31,8 @@ import org.apache.hadoop.hbase.util.Bytes;
 public class NewsFrontEnd {
 
 	//解析movieline的数据，读取到内存里面
-	private ArrayList<Integer> uids = new ArrayList<Integer>();//用于存放用户id
-	private ArrayList<Integer> storyids = new ArrayList<Integer>();//用于存放story id
+	private ArrayList<String> uids = new ArrayList<String>();//用于存放用户id
+	private ArrayList<String> storyids = new ArrayList<String>();//用于存放story id
 	private ArrayList<Integer> scores = new ArrayList<Integer>();//用于存放打分
 	private ArrayList<Long> timestamp = new ArrayList<Long>();//用于存放时间
 	
@@ -51,13 +51,13 @@ public class NewsFrontEnd {
 	 * @throws IOException 
 	 */
 	public void writeUidData(String filepath) throws IOException {
-		HashSet<Integer> unique_uids = new HashSet<Integer>();
-		for (Integer uid : uids) {
+		HashSet<String> unique_uids = new HashSet<String>();
+		for (String uid : uids) {
 			unique_uids.add(uid);
 		}
 		FileWriter fileWriter = new FileWriter(filepath);
 		BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
-		Iterator<Integer> uid_iterator = unique_uids.iterator();
+		Iterator<String> uid_iterator = unique_uids.iterator();
 		while (uid_iterator.hasNext()) {
 			bufferedWriter.write(uid_iterator.next().toString());
 			bufferedWriter.newLine();
@@ -102,7 +102,8 @@ public class NewsFrontEnd {
 		String line = null;
 		while((line = br.readLine()) != null) {
 			String[] parts = line.split(CommonUtil.split_char);
-			if (!parts[0].equals(lastuid) && lastuid != null) {//统计每个用户的平均分
+			String uid = "u" + parts[0];
+			if (!uid.equals(lastuid) && lastuid != null) {//统计每个用户的平均分
 				average = sumScore / count;
 				average_score.put(lastuid, average);
 				count = 0;
@@ -110,11 +111,11 @@ public class NewsFrontEnd {
 			}
 			count ++;
 			sumScore += Integer.valueOf(parts[2]);
-			uids.add(Integer.valueOf(parts[0]));
-			storyids.add(Integer.valueOf(parts[1]));
+			uids.add(uid);
+			storyids.add("s" + parts[1]);
 			scores.add(Integer.valueOf(parts[2]));
 			timestamp.add(Long.valueOf(parts[3]));
-			lastuid = parts[0];
+			lastuid = uid;
 		}
 		//添加最后一个用户
 		average = sumScore / count;
@@ -164,7 +165,7 @@ public class NewsFrontEnd {
 		
 		HTable table = new HTable(config, tablename);
 		for (int i = 0; i < count; i++) {
-			String uid = uids.get(i).toString();
+			String uid = uids.get(i);
 			if (scores.get(i) > average_score.get(uid)) {
 				byte[] row = Bytes.toBytes(uid);
 				Put put = new Put(row);
