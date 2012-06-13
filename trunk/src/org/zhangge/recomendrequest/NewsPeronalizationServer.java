@@ -39,8 +39,8 @@ public class NewsPeronalizationServer {
 	private List<Result> storyList = new ArrayList<Result>();
 	private ResultScanner rs;
 	public HBaseAdmin admin;
-	private ArrayList<Integer> uids = new ArrayList<Integer>();//用于存放用户id
-	private ArrayList<Integer> storyids = new ArrayList<Integer>();//用于存放story id
+	private ArrayList<String> uids = new ArrayList<String>();//用于存放用户id
+	private ArrayList<String> storyids = new ArrayList<String>();//用于存放story id
 	private ArrayList<Integer> scores = new ArrayList<Integer>();//用于存放打分
 	private Map<String, Double> average_score = new HashMap<String, Double>();//存放每个用户的平均分数
 	private Map<String, Set<String>> candidate = new HashMap<String, Set<String>>();//存放候选story
@@ -258,8 +258,9 @@ public class NewsPeronalizationServer {
 		String line = null;
 		while((line = br.readLine()) != null) {
 			String[] parts = line.split(CommonUtil.split_char);
-			uids.add(Integer.valueOf(parts[0]));
-			storyids.add(Integer.valueOf(parts[1]));
+			String uid = "u" + parts[0];
+			uids.add(uid);
+			storyids.add("s" + parts[1]);
 			scores.add(Integer.valueOf(parts[2]));
 		}
 		br.close();
@@ -274,8 +275,8 @@ public class NewsPeronalizationServer {
 		br2.close();
 		
 		for (int i = 0; i < uids.size(); i++) {
-			Integer uid = uids.get(i);
-			if (scores.get(i) >= average_score.get(uid.toString())) {
+			String uid = uids.get(i);
+			if (scores.get(i) >= average_score.get(uid)) {
 				test_size ++;
 				Map<String, Double> scoresMap = ranklist.get(uid.toString());
 				if (scoresMap.containsKey(storyids.get(i).toString())) {
