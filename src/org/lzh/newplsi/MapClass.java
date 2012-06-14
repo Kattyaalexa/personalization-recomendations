@@ -50,9 +50,9 @@ public class MapClass extends TableMapper<Text,FloatWritable>{
 		float q = 0;	//q*的值
 		//把values的内容分发到clusters_kv和history_kv中
 		for(KeyValue kv : values.raw()) {
-			if("clusters".equals(Bytes.toString(kv.getFamily()))){
+			if("clusters_plsi".equals(Bytes.toString(kv.getFamily()))){
 				clusters_kv.add(kv);	//把UT表clusters里面的内容都放进clusters_kv
-			} else {
+			} else if("story".equals(Bytes.toString(kv.getFamily()))){
 				history_kv.add(kv);	//把UT表history里面的内容都放进history_kv
 			}
 		}
