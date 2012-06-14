@@ -35,7 +35,7 @@ public class Reduce extends TableReducer<Text,FloatWritable,ImmutableBytesWritab
 		if(key.toString().startsWith("@")){
 			String[] s = key.toString().split("==");
 			Put put = new Put(Bytes.toBytes(s[1]));
-			put.add(Bytes.toBytes("clusters"),Bytes.toBytes(s[2]),Bytes.toBytes(sum+""));
+			put.add(Bytes.toBytes("clusters_plsi"),Bytes.toBytes(s[2]),Bytes.toBytes(sum+""));
 			
 			context.write(new ImmutableBytesWritable(Bytes.toBytes(s[1])), put);
 		}else{

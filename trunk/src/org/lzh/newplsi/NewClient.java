@@ -14,7 +14,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
-
+import org.lzh.table.GenTable;
 
 public class NewClient extends Configured implements Tool{
 	
@@ -30,32 +30,32 @@ public class NewClient extends Configured implements Tool{
 		DistributedCache.addCacheFile(new Path("intermediaNsz").toUri(),job.getConfiguration());
 		
 		Scan scan = new Scan();
-		scan.addFamily(Bytes.toBytes("clusters"));
-		scan.addFamily(Bytes.toBytes("history"));
+		scan.addFamily(Bytes.toBytes("clusters_plsi"));
+		scan.addFamily(Bytes.toBytes("story"));
 		
-		TableMapReduceUtil.initTableMapperJob(Bytes.toBytes("UT"),
+		TableMapReduceUtil.initTableMapperJob(Bytes.toBytes(GenTable.UT),
 																											scan,
 																											MapClass.class, 
 																											Text.class, 
 																											FloatWritable.class,
 																											job);
-		TableMapReduceUtil.initTableReducerJob("UT",
+		TableMapReduceUtil.initTableReducerJob(GenTable.UT,
 																												Reduce.class,
 																												job);
 		//job.setReducerClass(Reduce.class);
-		//job.waitForCompletion(true);
-		System.exit(job.waitForCompletion(true)?0:1);
+		job.waitForCompletion(true);
+		//System.exit(job.waitForCompletion(true)?0:1);
 		return 0;
 	}
 
 	public static void main(String[] args) throws Exception{
-		/*int[] res = new int[3];
+		int[] res = new int[50];
 		for(int i=0;i<res.length;i++){
 			res[i] = ToolRunner.run(new Configuration(), new NewClient(), args);
 		}
-		System.exit(0);*/
-		int res = ToolRunner.run(new Configuration(), new NewClient(), args);
-		System.exit(res);
+		System.exit(0);
+		/*int res = ToolRunner.run(new Configuration(), new NewClient(), args);
+		System.exit(res);*/
 				
 	}
 }
