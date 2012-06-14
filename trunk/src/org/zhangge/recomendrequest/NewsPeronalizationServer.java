@@ -217,7 +217,7 @@ public class NewsPeronalizationServer {
 	}  
 	
 	/**
-	 * 产生推荐分数写到文件里面去
+	 * 产生所有推荐分数写到文件里面去
 	 * @param filepath
 	 * @throws IOException
 	 */
@@ -231,13 +231,13 @@ public class NewsPeronalizationServer {
 			scores = sortMapByValue(scores);
 			Set<String> ks = scores.keySet();
 			for (String k : ks) {
-				if (i <= CommonUtil.recommond_number) {
+				//if (i <= CommonUtil.recommond_number) {
 					Double score = scores.get(k);
 					bufferedWriter.write(i + ":" + key + ":" + k + ":" + score);
 					bufferedWriter.newLine();
 					i ++;
 //System.out.println(key + ":" + k + ":" + score);
-				}
+				//}
 			}
 			ranklist.put(key, scores);
 		}
@@ -252,18 +252,6 @@ public class NewsPeronalizationServer {
 	 * @throws IOException
 	 */
 	public void computePrecisionAndRecall(String filepath) throws NumberFormatException, IOException {
-		//读取test数据集
-		File file = new File(CommonUtil.filepath + CommonUtil.test_set);
-		BufferedReader br = new BufferedReader(new FileReader(file));
-		String line = null;
-		while((line = br.readLine()) != null) {
-			String[] parts = line.split(CommonUtil.split_char);
-			String uid = "u" + parts[0];
-			uids.add(uid);
-			storyids.add("s" + parts[1]);
-			scores.add(Integer.valueOf(parts[2]));
-		}
-		br.close();
 		//读取平均分数
 		File file2 = new File(CommonUtil.filepath + CommonUtil.average_set);
 		BufferedReader br2 = new BufferedReader(new FileReader(file2));
@@ -273,42 +261,68 @@ public class NewsPeronalizationServer {
 			average_score.put(parts[0], Double.valueOf(parts[1]));
 		}
 		br2.close();
-		
-		for (int i = 0; i < uids.size(); i++) {
-			String uid = uids.get(i);
-			if (scores.get(i) >= average_score.get(uid)) {
+				
+		//读取test数据集,并且统计test set大小
+		File file = new File(CommonUtil.filepath + CommonUtil.test_set);
+		BufferedReader br = new BufferedReader(new FileReader(file));
+		String line = null;
+		while((line = br.readLine()) != null) {
+			String[] parts = line.split(CommonUtil.split_char);
+			String uid = "u" + parts[0];
+			int score = Integer.valueOf(parts[2]);
+			if (score >= average_score.get(uid)) {
+				uids.add(uid);
+				storyids.add("s" + parts[1]);
+				scores.add(score);
 				test_size ++;
+			}
+		}
+		br.close();
+		
+		//根据不同的threshold来统计计算
+		FileWriter fileWriter = new FileWriter(filepath);
+		BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
+		for (int x = CommonUtil.Threshold_min; x <= CommonUtil.Threshold_max; x++) {
+			double tempX = (double)x / 10;
+			double threshold = Math.pow(10, -tempX);//计算门槛
+			bingo = 0;
+System.out.println("threshold:" + threshold);
+			//遍历test 所有的story
+			for (int i = 0; i < uids.size(); i++) {
+				String uid = uids.get(i);
 				Map<String, Double> scoresMap = ranklist.get(uid.toString());
-				if (scoresMap.containsKey(storyids.get(i).toString())) {
+				//如果推荐列表里面包含了这个story，并且推荐分数大于threshold，则命中
+				if (scoresMap.containsKey(storyids.get(i).toString()) && scoresMap.get(storyids.get(i)) >= threshold) {
 					bingo ++;
 				}
 			}
-		}
-		
-		Set<String> uidSet = ranklist.keySet();
-		for (String us : uidSet) {
-			Map<String, Double> scoreMap = ranklist.get(us);
-			if (scoreMap.size() <= CommonUtil.recommond_number) {
-				recommand_size += scoreMap.size();
-			} else {
-				recommand_size += CommonUtil.recommond_number;
+			
+			//统计推荐集合的大小
+			Set<String> uidSet = ranklist.keySet();
+			for (String us : uidSet) {
+				Map<String, Double> scoreMap = ranklist.get(us);
+				Set<String> keySet = scoreMap.keySet();
+				for (String key : keySet) {
+					if (scoreMap.get(key) >= threshold) {
+						recommand_size ++;
+					}
+				}
 			}
-		}
-		
-		FileWriter fileWriter = new FileWriter(filepath, true);
-		BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
-		
-		precision = bingo / recommand_size;
-		recall = bingo / test_size;
+			
+			precision = bingo / recommand_size;
+			recall = bingo / test_size;
+			
 System.out.println("bingo:" + bingo);
 System.out.println("recommand_size:" + recommand_size);
 System.out.println("test_size:" + test_size);
 System.out.println("precision:" + precision);
-System.out.println("recall:" + recall);
-		
-		bufferedWriter.write(precision + ":" + recall + "\n");
+System.out.println("recall:" + recall + "\n");
+			
+			bufferedWriter.write(precision + ":" + recall + "\n");
+		}
 		bufferedWriter.flush();
 		bufferedWriter.close();
+		
 	}
 	
 	public static void main(String[] args) throws IOException {
