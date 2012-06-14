@@ -136,25 +136,37 @@ public class NewsFrontEnd {
 		HBaseAdmin admin = new HBaseAdmin(config);
 		
 		//先删除旧表
-		admin.disableTable(Bytes.toBytes(CommonUtil.UT));
-		admin.deleteTable(Bytes.toBytes(CommonUtil.UT));
-		admin.disableTable(Bytes.toBytes(CommonUtil.ST));
-		admin.deleteTable(Bytes.toBytes(CommonUtil.ST));
+		if (admin.tableExists(Bytes.toBytes(CommonUtil.UT))) {
+			if (!admin.isTableDisabled(Bytes.toBytes(CommonUtil.UT))) {
+				admin.disableTable(Bytes.toBytes(CommonUtil.UT));
+				admin.deleteTable(Bytes.toBytes(CommonUtil.UT));
+			}
+		}
+		if (admin.tableExists(CommonUtil.ST)) {
+			if (!admin.isTableDisabled(CommonUtil.ST)) {
+				admin.disableTable(Bytes.toBytes(CommonUtil.ST));
+				admin.deleteTable(Bytes.toBytes(CommonUtil.ST));
+			}
+		}
 		
 		//创建UT表
 		HTableDescriptor htd1 = new HTableDescriptor(CommonUtil.UT);//一个表
 		HColumnDescriptor hcd1 = new HColumnDescriptor(CommonUtil.UT_Family1);//第一个列族
 		HColumnDescriptor hcd2 = new HColumnDescriptor(CommonUtil.UT_Family2);//第二个列族
+		HColumnDescriptor hcd3 = new HColumnDescriptor(CommonUtil.UT_Family3);//第三个列族
 		htd1.addFamily(hcd1);
 		htd1.addFamily(hcd2);
+		htd1.addFamily(hcd3);
 		admin.createTable(htd1);
 		
 		//创建ST表
 		HTableDescriptor htd2 = new HTableDescriptor(CommonUtil.ST);
-		HColumnDescriptor hcd3 = new HColumnDescriptor(CommonUtil.ST_Family1);
-		HColumnDescriptor hcd4 = new HColumnDescriptor(CommonUtil.ST_Family2);
-		htd2.addFamily(hcd3);
+		HColumnDescriptor hcd4 = new HColumnDescriptor(CommonUtil.ST_Family1);
+		HColumnDescriptor hcd5 = new HColumnDescriptor(CommonUtil.ST_Family2);
+		HColumnDescriptor hcd6 = new HColumnDescriptor(CommonUtil.ST_Family3);
 		htd2.addFamily(hcd4);
+		htd2.addFamily(hcd5);
+		htd2.addFamily(hcd6);
 		admin.createTable(htd2);
 		
 		byte[] tablename = htd1.getName();
