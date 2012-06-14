@@ -30,7 +30,7 @@ public class GenResult {
 		}		
 	}
 	
-	public static void genRecForUser(String uid) throws IOException{
+	public void genRecForUser(String uid) throws IOException{
 		
 		float[] pzu = new float[20];
 		
@@ -68,6 +68,16 @@ public class GenResult {
 				
 			}
 		}
+	}
+	
+	public void readUids(String filepath) throws IOException {
+		File file = new File(filepath);
+		BufferedReader br = new BufferedReader(new FileReader(file));
+		String uid = null;
+		while((uid = br.readLine()) != null) {
+			genRecForUser(String uid);
+		}
+		br.close();
 	}
 	
 	public static void main(String[] args) throws IOException {
