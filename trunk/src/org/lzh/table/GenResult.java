@@ -1,5 +1,8 @@
 package org.lzh.table;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
@@ -9,7 +12,6 @@ import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.lzh.table.GenTable;
 
 public class GenResult {
 
@@ -75,7 +77,7 @@ public class GenResult {
 		BufferedReader br = new BufferedReader(new FileReader(file));
 		String uid = null;
 		while((uid = br.readLine()) != null) {
-			genRecForUser(String uid);
+			genRecForUser(uid);
 		}
 		br.close();
 	}

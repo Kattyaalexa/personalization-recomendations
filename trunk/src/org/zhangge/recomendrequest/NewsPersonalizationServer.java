@@ -29,26 +29,41 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.zhangge.CommonUtil;
 
-public class NewsPeronalizationServer {
+public class NewsPersonalizationServer {
 
 	private HTable usertable;
 	private HTable storytable;
 	private Result user_clusters;
+	private ResultScanner rs;
+	public HBaseAdmin admin;
 	private Map<String, Integer> sum_clicks = new HashMap<String, Integer>();//存放每个集群的总点击数，集群id，点击数
 	private Map<String, Map<String, Double>> ranklist = new HashMap<String, Map<String, Double>>();//存放推荐分数列表
 	private List<Result> storyList = new ArrayList<Result>();
-	private ResultScanner rs;
-	public HBaseAdmin admin;
-	private ArrayList<String> uids = new ArrayList<String>();//用于存放用户id
+	private Map<String, Map<String, Integer>> story_clicktimes;//用户存放ST表缓存
+	private ArrayList<String> uids;//用于存放用户id
 	private ArrayList<String> storyids = new ArrayList<String>();//用于存放story id
 	private ArrayList<Integer> scores = new ArrayList<Integer>();//用于存放打分
-	private Map<String, Double> average_score = new HashMap<String, Double>();//存放每个用户的平均分数
+	private Map<String, Integer> average_score;//存放每个用户的平均分数
 	private Map<String, Set<String>> candidate = new HashMap<String, Set<String>>();//存放候选story
+	private boolean hp;//用于判断是否高性能
 	private double bingo = 0;//推荐和test数据集的交集个数
 	private double recommand_size = 0;//推荐的个数
 	private double test_size = 0;//test数据集的个数
 	private double precision = 0;
 	private double recall = 0;
+	
+	public NewsPersonalizationServer() {
+	}
+
+	public NewsPersonalizationServer(Map<String, Map<String, Integer>> story_clicktimes, 
+			Map<String, Integer> average_score, boolean hp, HBaseAdmin admin) throws IOException {
+		this.story_clicktimes = story_clicktimes;
+		this.admin = admin;
+		this.hp = hp;
+		this.average_score = average_score;
+		usertable = new HTable(admin.getConfiguration(), CommonUtil.UT.getBytes());
+		storytable = new HTable(admin.getConfiguration(), CommonUtil.ST.getBytes());
+	}
 	
 	/**
 	 * 连接hbase数据库
@@ -61,7 +76,6 @@ public class NewsPeronalizationServer {
 		usertable = new HTable(config, CommonUtil.UT.getBytes());
 		storytable = new HTable(config, CommonUtil.ST.getBytes());
 	}
-	
 	
 	/**
 	 * 根据uid从UT表读取用户的集群信息
@@ -82,6 +96,29 @@ public class NewsPeronalizationServer {
 		Scan scan = new Scan();
 		scan.addFamily(Bytes.toBytes(CommonUtil.ST_Family1));
 		rs = storytable.getScanner(scan);
+	}
+	
+	/**
+	 * 为了提高性能，直接从NSS获取ST表的缓存数据，然后统计每个集群的总点击数
+	 */
+	public void summarizeClicksByNSS() {
+		Set<String> storyIds = story_clicktimes.keySet();
+		for (String storyId : storyIds) {
+			Map<String, Integer> clicks = story_clicktimes.get(storyId);
+			Set<String> clusterIds = clicks.keySet();
+			for (String clusterId : clusterIds) {
+				Integer sclicks = clicks.get(clusterId);
+				if (sum_clicks.containsKey(clusterId)) {
+					sum_clicks.put(clusterId, sum_clicks.get(clusterId) + sclicks);
+				} else {
+					sum_clicks.put(clusterId, sclicks);
+				}
+			}
+		}
+		Set<String> keys = sum_clicks.keySet();
+		for (String key : keys) {
+			System.out.println(key + ": " + sum_clicks.get(key));
+		}
 	}
 
 	/**
@@ -105,10 +142,10 @@ public class NewsPeronalizationServer {
 				}
 			}
 		}
-//		Set<String> keys = sum_clicks.keySet();
-//		for (String key : keys) {
-//			System.out.println(key + ": " + sum_clicks.get(key));
-//		}
+		Set<String> keys = sum_clicks.keySet();
+		for (String key : keys) {
+			System.out.println(key + ": " + sum_clicks.get(key));
+		}
 	}
 	
 	/**
@@ -121,10 +158,57 @@ public class NewsPeronalizationServer {
 		BufferedReader br = new BufferedReader(new FileReader(file));
 		String line = null;
 		while((line = br.readLine()) != null) {
-			fetchFromUT(line);
-			makeRankedStories(line);
+			String[] parts = line.split(CommonUtil.split_user);
+			String uid = "u" + parts[0];
+			fetchFromUT(uid);
+			if (hp) {
+				makeRankedStoriesByNSS(uid);
+			} else {
+				makeRankedStories(uid);
+			}
 		}
 		br.close();
+	}
+	
+	/**
+	 * 为了提高性能，直接从NSS获取ST表的缓存计算推荐分数
+	 * @param uid
+	 */
+	public void makeRankedStoriesByNSS(String uid) {
+		Map<String, Double> scores = new HashMap<String, Double>();
+		List<KeyValue> clustersList = user_clusters.list();
+		if (clustersList != null) {
+			for (KeyValue cluster : clustersList) {//遍历用户所有的集群
+				String clusterid = Bytes.toString(cluster.getQualifier());
+				//遍历所有story
+				Set<String> storyIds = story_clicktimes.keySet();
+				for (String storyId : storyIds) {
+					Map<String, Integer> clicksMap = story_clicktimes.get(storyId);
+					//如果这个story属于这个集群
+					if (clicksMap.containsKey(clusterid)) {
+						//首先加入候选集
+						Set<String> storyIdSet = candidate.get(clusterid);
+						if (storyIdSet == null) {
+							storyIdSet = new HashSet<String>();
+						}
+						storyIdSet.add(storyId);
+						candidate.put(clusterid, storyIdSet);
+						//计算推荐分数
+						Integer click = clicksMap.get(clusterid);
+						Double sum = Double.valueOf(sum_clicks.get(new String(clusterid)));
+						Double clicks = Double.valueOf(click);
+						Double score = clicks / sum;
+//System.out.println(storyId + ":" + clicks + ":" + sum + ":" + score);
+						if (scores.containsKey(storyId)) {
+							scores.put(storyId, scores.get(storyId) + score);
+						} else {
+							scores.put(storyId, score);
+						}
+					}
+				}
+			}
+		}
+		ranklist.put(uid, scores);
 	}
 	
 	/**
@@ -248,21 +332,27 @@ public class NewsPeronalizationServer {
 	
 	/**
 	 * 计算precision和call
+	 * @param filepath precision recall 的写出文件路径
+	 * @param hp 判断是否高性能
 	 * @throws NumberFormatException
 	 * @throws IOException
 	 */
 	public void computePrecisionAndRecall(String filepath) throws NumberFormatException, IOException {
-		//读取平均分数
-		File file2 = new File(CommonUtil.filepath + CommonUtil.average_set);
-		BufferedReader br2 = new BufferedReader(new FileReader(file2));
-		String line2 = null;
-		while((line2 = br2.readLine()) != null) {
-			String[] parts = line2.split(CommonUtil.split_average);
-			average_score.put(parts[0], Double.valueOf(parts[1]));
+		if (!hp) {
+			//读取平均分数
+			average_score = new HashMap<String, Integer>();//必须重新写入
+			File file2 = new File(CommonUtil.filepath + CommonUtil.average_set);
+			BufferedReader br2 = new BufferedReader(new FileReader(file2));
+			String line2 = null;
+			while((line2 = br2.readLine()) != null) {
+				String[] parts = line2.split(CommonUtil.split_average);
+				average_score.put(parts[0], Integer.valueOf(parts[1]));
+			}
+			br2.close();
 		}
-		br2.close();
 				
 		//读取test数据集,并且统计test set大小
+		uids = new ArrayList<String>();
 		File file = new File(CommonUtil.filepath + CommonUtil.test_set);
 		BufferedReader br = new BufferedReader(new FileReader(file));
 		String line = null;
@@ -298,6 +388,7 @@ System.out.println("threshold:" + threshold);
 			}
 			
 			//统计推荐集合的大小
+			recommand_size = 0;
 			Set<String> uidSet = ranklist.keySet();
 			for (String us : uidSet) {
 				Map<String, Double> scoreMap = ranklist.get(us);
@@ -326,13 +417,13 @@ System.out.println("recall:" + recall + "\n");
 	}
 	
 	public static void main(String[] args) throws IOException {
-		NewsPeronalizationServer NPS = new NewsPeronalizationServer();
+		NewsPersonalizationServer NPS = new NewsPersonalizationServer();
 		NPS.connectToHbase();
 		NPS.summarizeClicks();
 		NPS.readUids(CommonUtil.filepath + CommonUtil.uid_set);
 		NPS.writeScoreToFile(CommonUtil.filepath + CommonUtil.recommand_scores);
-		NPS.computePrecisionAndRecall(CommonUtil.filepath + CommonUtil.precision_recall);
 		NPS.writeCandidate(CommonUtil.filepath + CommonUtil.candidate);
+		NPS.computePrecisionAndRecall(CommonUtil.filepath + CommonUtil.precision_recall);
 		NPS.admin.close();
 	}
 }
