@@ -11,12 +11,15 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.mapreduce.Job;
 import org.zhangge.CommonUtil;
 import org.zhangge.minhash.mapper.MinHashMapper;
+import org.zhangge.minhash.random.SeedGenerator;
 import org.zhangge.minhash.reducer.MinHashReducer;
 
 
 public class MinHashClient {
 
 	public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
+		SeedGenerator SG = new SeedGenerator();//首先生成一下随机数种子
+		SG.generateSeeds(CommonUtil.MinHash_p * CommonUtil.MinHash_q, CommonUtil.filepath + CommonUtil.seedvalue);
 		MinHashClient mhc = new MinHashClient();
 		mhc.run();
 	}

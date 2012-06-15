@@ -8,8 +8,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -36,35 +35,17 @@ public class NewsFrontEnd {
 	private ArrayList<Integer> scores = new ArrayList<Integer>();//用于存放打分
 	private ArrayList<Long> timestamp = new ArrayList<Long>();//用于存放时间
 	
-	private Map<String, Double> average_score = new HashMap<String, Double>();//存放每个用户的平均分数
+	private Map<String, ArrayList<Integer>> user_story = new HashMap<String, ArrayList<Integer>>();//存放用户和他的所有点击历史，用于计算平均分
+	private Map<String, Integer> average_score = new HashMap<String, Integer>();//存放每个用户的平均分数
+	
+	private HBaseAdmin admin;
 	
 	public static void main(String[] args) throws IOException, InterruptedException {
 		NewsFrontEnd nfe = new NewsFrontEnd();
+		//先计算平均分
+		nfe.writeAverageData(CommonUtil.filepath + CommonUtil.user_data, CommonUtil.filepath + CommonUtil.average_set);
 		nfe.readData(CommonUtil.filepath + CommonUtil.train_set);
-		nfe.writeUidData(CommonUtil.filepath + CommonUtil.uid_set);
-		nfe.writeAverageData(CommonUtil.filepath + CommonUtil.average_set);
-	}
-	
-	/**
-	 * 把用户id写到一个文件里面去，以便再用
-	 * @param filepath
-	 * @throws IOException 
-	 */
-	public void writeUidData(String filepath) throws IOException {
-		HashSet<String> unique_uids = new HashSet<String>();
-		for (String uid : uids) {
-			unique_uids.add(uid);
-		}
-		FileWriter fileWriter = new FileWriter(filepath);
-		BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
-		Iterator<String> uid_iterator = unique_uids.iterator();
-		while (uid_iterator.hasNext()) {
-			bufferedWriter.write(uid_iterator.next().toString());
-			bufferedWriter.newLine();
-		}
-		bufferedWriter.flush();
-		bufferedWriter.close();
-		fileWriter.close();
+		nfe.admin.close();
 	}
 	
 	/**
@@ -72,13 +53,39 @@ public class NewsFrontEnd {
 	 * @param filepath
 	 * @throws IOException
 	 */
-	public void writeAverageData(String filepath) throws IOException {
-		FileWriter fileWriter = new FileWriter(filepath);
+	public void writeAverageData(String userdatafilepath, String averagefilepath) throws IOException {
+		//首先从总数据里面读取用户和rating数据
+		FileReader fileReader = new FileReader(userdatafilepath);
+		BufferedReader bufferedReader = new BufferedReader(fileReader);
+		String line = null;
+		while ((line = bufferedReader.readLine()) != null) {
+			String[] parts = line.split("\t");
+			String uid = "u" + parts[0];
+			Integer rating = Integer.valueOf(parts[2]);
+			ArrayList<Integer> clickStory = user_story.get(uid);
+			if (clickStory == null) {
+				clickStory = new ArrayList<Integer>();
+			}
+			clickStory.add(rating);
+			user_story.put(uid, clickStory);
+		}
+		bufferedReader.close();
+		fileReader.close();
+		
+		//计算平均分，然后写到文件
+		FileWriter fileWriter = new FileWriter(averagefilepath);
 		BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
-		Set<String> akeys = average_score.keySet();
-		for (String key : akeys) {
-			Double average = average_score.get(key);
-			bufferedWriter.write(key + CommonUtil.split_average + average);
+		Set<String> uids = user_story.keySet();
+		for (String uid : uids) {
+			ArrayList<Integer> clickStory = user_story.get(uid);
+			int sum = 0;
+			for (Integer rating : clickStory) {
+				sum += rating;
+			}
+			int count = clickStory.size();
+			int average = sum / count;
+			average_score.put(uid, average);
+			bufferedWriter.write(uid + CommonUtil.split_average + average);
 			bufferedWriter.newLine();
 		}
 		bufferedWriter.flush();
@@ -95,31 +102,15 @@ public class NewsFrontEnd {
 	public void readData(String filepath) throws IOException, InterruptedException {
 		File file = new File(filepath);
 		BufferedReader br = new BufferedReader(new FileReader(file));
-		int count = 0;//统计每个用户的点击总数
-		double sumScore = 0;//累加每个用户的总分数
-		double average = 0;//计算得到的平均值
-		String lastuid = null;//上一个用户id
 		String line = null;
 		while((line = br.readLine()) != null) {
 			String[] parts = line.split(CommonUtil.split_char);
 			String uid = "u" + parts[0];
-			if (!uid.equals(lastuid) && lastuid != null) {//统计每个用户的平均分
-				average = sumScore / count;
-				average_score.put(lastuid, average);
-				count = 0;
-				sumScore = 0;
-			}
-			count ++;
-			sumScore += Integer.valueOf(parts[2]);
 			uids.add(uid);
 			storyids.add("s" + parts[1]);
 			scores.add(Integer.valueOf(parts[2]));
 			timestamp.add(Long.valueOf(parts[3]));
-			lastuid = uid;
 		}
-		//添加最后一个用户
-		average = sumScore / count;
-		average_score.put(lastuid, average);
 		generateToHbase(uids.size());
 	}
 	
@@ -133,7 +124,7 @@ public class NewsFrontEnd {
 	 */
 	public void generateToHbase(int count) throws IOException, InterruptedException {
 		Configuration config = HBaseConfiguration.create();
-		HBaseAdmin admin = new HBaseAdmin(config);
+		admin = new HBaseAdmin(config);
 		
 		//先删除旧表
 		if (admin.tableExists(Bytes.toBytes(CommonUtil.UT))) {
@@ -142,7 +133,7 @@ public class NewsFrontEnd {
 				admin.deleteTable(Bytes.toBytes(CommonUtil.UT));
 			}
 		}
-		if (admin.tableExists(CommonUtil.ST)) {
+		if (admin.tableExists(Bytes.toBytes(CommonUtil.ST))) {
 			if (!admin.isTableDisabled(CommonUtil.ST)) {
 				admin.disableTable(Bytes.toBytes(CommonUtil.ST));
 				admin.deleteTable(Bytes.toBytes(CommonUtil.ST));
@@ -176,6 +167,7 @@ public class NewsFrontEnd {
 		}
 		
 		HTable table = new HTable(config, tablename);
+		List<Put> puts = new ArrayList<Put>();
 		for (int i = 0; i < count; i++) {
 			String uid = uids.get(i);
 			if (scores.get(i) > average_score.get(uid)) {
@@ -183,9 +175,22 @@ public class NewsFrontEnd {
 				Put put = new Put(row);
 				byte[] family = Bytes.toBytes(CommonUtil.UT_Family1);
 				put.add(family, Bytes.toBytes(storyids.get(i).toString()), timestamp.get(i), Bytes.toBytes(timestamp.get(i).toString()));
-				table.put(put);
+				puts.add(put);
 			}
 		}
-		admin.close();
+		table.put(puts);
 	}
+
+	public ArrayList<String> getUids() {
+		return uids;
+	}
+
+	public HBaseAdmin getAdmin() {
+		return admin;
+	}
+
+	public Map<String, Integer> getAverage_score() {
+		return average_score;
+	}
+	
 }
