@@ -42,8 +42,9 @@ public class TransUStest extends Configured implements Tool{
 		
 		protected void map(LongWritable key, Text value,Context context) throws IOException, InterruptedException {
 			String[] line = value.toString().split("	");
-			if(hashTable.get(line[0])<Float.parseFloat(line[2])){
-				context.write(new Text(line[0]),new Text(line[1]));
+			//if(hashTable.get(line[0])<=Float.parseFloat(line[2])){
+			if(hashTable.get("u"+line[0])<=Float.parseFloat(line[2])){
+				context.write(new Text("u"+line[0]),new Text("s"+line[1]));
 			}
 		}
 		
@@ -54,9 +55,9 @@ public class TransUStest extends Configured implements Tool{
 		
 		Job job = new Job(conf,"Tranform UStest");
 		job.setJarByClass(TransUStest.class);
-		DistributedCache.addCacheFile(new Path("average.ua-r-00000").toUri(),job.getConfiguration());
-		FileInputFormat.setInputPaths(job,new Path(args[0]));
-		FileOutputFormat.setOutputPath(job,new Path(args[1]));
+		DistributedCache.addCacheFile(new Path("average-r-00000").toUri(),job.getConfiguration());
+		FileInputFormat.setInputPaths(job,new Path(GenTable.DATA_TEST_INIT)); 
+		FileOutputFormat.setOutputPath(job,new Path(GenTable.DATA_TEST_MID));
 		
 		job.setMapperClass(MapClass.class);
 		job.setNumReduceTasks(0);

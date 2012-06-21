@@ -7,7 +7,6 @@ import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
@@ -19,12 +18,26 @@ import org.apache.hadoop.io.Text;
 
 public class Reduce extends TableReducer<Text,FloatWritable,ImmutableBytesWritable>{
 	
-	private List<String> ls = new ArrayList<String>();
-	Configuration conf;
-	protected void setup(Context context) throws IOException,InterruptedException {
+	private List<String> ls = new ArrayList<String>();//存放intermediaNz,intermediaNsz的数据
+		
+	/*protected void setup(Context context) throws IOException,InterruptedException {
 		conf = context.getConfiguration();
-	}
-
+		Path[] cacheFiles = DistributedCache.getLocalCacheFiles(conf);
+		BufferedReader br = null;
+		for(int i=0;i<cacheFiles.length;i++) {
+			String line;
+			String[] tokens;
+			if(cacheFiles[i].toString().equals("usersum")){
+				br = new BufferedReader(new FileReader(cacheFiles[i].toString()));
+				while((line=br.readLine()) != null) {
+					tokens = line.split("\t",2);
+					hashTable.put(new Text(tokens[0]),Float.parseFloat(tokens[1]));
+				}
+			}
+		}
+		br.close();		
+		
+	}*/
 	protected void reduce(Text key,Iterable<FloatWritable> values,Context context)	throws IOException,InterruptedException {
 		
 		float sum = 0;
@@ -46,8 +59,8 @@ public class Reduce extends TableReducer<Text,FloatWritable,ImmutableBytesWritab
 
 	protected void cleanup(Context context) throws IOException,InterruptedException {
 		
-		FileSystem fs = FileSystem.get(conf);
-		//FileSystem fs = FileSystem.get(URI.create("intermedia"),conf);
+		FileSystem fs = FileSystem.get(context.getConfiguration());
+		
 		OutputStream outNz = fs.create(new Path("intermediaNz"));
 		OutputStream outNsz = fs.create(new Path("intermediaNsz"));
 		BufferedWriter bwNz = new BufferedWriter(new OutputStreamWriter(outNz));

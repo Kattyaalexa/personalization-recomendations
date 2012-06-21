@@ -1,11 +1,15 @@
 package org.lzh.table;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Put;
@@ -39,7 +43,12 @@ public class TransUSToTable extends Configured implements Tool {
 	}
 	
 	public static class Reduce extends TableReducer<Text,Text,ImmutableBytesWritable>{
-		
+		private List<String> ls = new ArrayList<String>();
+		Configuration config;
+		protected void setup(Context context) throws IOException,InterruptedException {
+			config = context.getConfiguration();
+		}
+
 		protected void reduce(Text key,Iterable<Text> values,Context context) throws IOException,InterruptedException {
 			float sum = 0;
 			List<String> valueList = new ArrayList<String>();
@@ -50,6 +59,7 @@ public class TransUSToTable extends Configured implements Tool {
 				valueList.add(val.toString());
 			}
 			sum /= valueList.size();
+			ls.add("u"+key.toString()+"\t"+sum);
 			
 			for(int i=0;i<valueList.size();i++){
 				String[] line = valueList.get(i).split("	");
@@ -60,6 +70,20 @@ public class TransUSToTable extends Configured implements Tool {
 				}
 			}
 		}
+		
+		protected void cleanup(Context context) throws IOException,InterruptedException {
+			FileSystem fs = FileSystem.get(config);
+			
+			OutputStream outNz = fs.create(new Path("/user/lzh/average"));
+			BufferedWriter bwNz = new BufferedWriter(new OutputStreamWriter(outNz));
+			
+			for(int i=0;i<ls.size();i++){
+				bwNz.write(ls.get(i));
+				bwNz.newLine();				
+			}
+			bwNz.close();
+		}
+
 	}
 	
 	public int run(String[] args) throws Exception {
@@ -69,7 +93,7 @@ public class TransUSToTable extends Configured implements Tool {
 		Job job = new Job(conf,"Transform data to talbe");
 		job.setJarByClass(TransUSToTable.class);
 		
-		FileInputFormat.setInputPaths(job,new Path(args[0]));
+		FileInputFormat.setInputPaths(job,new Path(GenTable.DATA_BASE));
 		
 		job.setMapperClass(MapClass.class);
 		job.setMapOutputKeyClass(Text.class);

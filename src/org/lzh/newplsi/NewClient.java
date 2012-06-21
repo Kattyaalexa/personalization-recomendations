@@ -42,14 +42,14 @@ public class NewClient extends Configured implements Tool{
 		TableMapReduceUtil.initTableReducerJob(GenTable.UT,
 																												Reduce.class,
 																												job);
-		//job.setReducerClass(Reduce.class);
+		
 		job.waitForCompletion(true);
 		//System.exit(job.waitForCompletion(true)?0:1);
 		return 0;
 	}
 
 	public static void main(String[] args) throws Exception{
-		int[] res = new int[50];
+		int[] res = new int[20];
 		for(int i=0;i<res.length;i++){
 			res[i] = ToolRunner.run(new Configuration(), new NewClient(), args);
 		}
