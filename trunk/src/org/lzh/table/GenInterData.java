@@ -30,7 +30,7 @@ public class GenInterData {
 		Random rd = new Random();
 		
 		for(int i=1;i<=CLUSTER_NUM;i++){
-			bwNz.write("z"+i+"\t"+(rd.nextFloat()+1.0)*10);
+			bwNz.write("z"+i+"\t"+(rd.nextFloat()+1.0)*15);
 			bwNz.newLine();
 			for(int j=1;j<=NEWS_NUM;j++){
 				bwNsz.write("s"+j+"=="+"z"+i+"\t"+rd.nextFloat());

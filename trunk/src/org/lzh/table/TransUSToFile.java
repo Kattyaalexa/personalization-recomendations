@@ -9,12 +9,12 @@ import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapred.lib.MultipleOutputs;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
@@ -29,17 +29,17 @@ public class TransUSToFile extends Configured implements Tool {
 
 		protected void map(LongWritable key, Text value,Context context) throws IOException, InterruptedException {
 			String[] line = value.toString().split("	");
-			context.write(new Text(line[0]),new Text(line[1]+"	"+line[2]));
+			context.write(new Text("u"+line[0]),new Text(line[1]+"	"+line[2]));
 		}
 		
 	}
 	
 	public static class Reduce extends Reducer<Text,Text,Text,Text>{
 		
-		//private MultipleOutputs<Text,Text> mos;
+		private MultipleOutputs<Text,Text> mos;
 		
 		protected void setup(Context context) throws IOException,InterruptedException {
-			//mos = new MultipleOutputs<Text,Text>(context);
+			mos = new MultipleOutputs<Text,Text>(context);
 		}
 		
 		protected void reduce(Text key,Iterable<Text> values,Context context) throws IOException,InterruptedException {
@@ -52,7 +52,7 @@ public class TransUSToFile extends Configured implements Tool {
 				valueList.add(val.toString());
 			}
 			sum /= valueList.size();
-			//mos.write(key, new Text(sum+""),"/user/lzh/average.ua");
+			mos.write(key, new Text(sum+""),"/user/lzh/average");
 			
 			for(int i=0;i<valueList.size();i++){
 				String[] line = valueList.get(i).split("	");
@@ -63,7 +63,7 @@ public class TransUSToFile extends Configured implements Tool {
 		}
 		
 		protected void cleanup(Context context) throws IOException,InterruptedException {
-			//mos.close();
+			mos.close();
 		}
 	}
 	
@@ -73,8 +73,8 @@ public class TransUSToFile extends Configured implements Tool {
 		Job job = new Job(conf,"Transform data to file");
 		job.setJarByClass(TransUSToFile.class);
 		
-		FileInputFormat.setInputPaths(job,new Path(args[0]));
-		FileOutputFormat.setOutputPath(job,new Path(args[1]));
+		FileInputFormat.setInputPaths(job,new Path("/user/lzh/u.data"));
+		FileOutputFormat.setOutputPath(job,new Path("/user/lzh/u.out"));
 		
 		job.setMapperClass(MapClass.class);
 		job.setReducerClass(Reduce.class);
